@@ -18,13 +18,13 @@ struct FocusLiveActivityWidget: Widget {
                         .foregroundStyle(QueueWidgetColors.sage)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(FocusTimerFormatting.clock(context.state.remaining()))
-                        .font(.system(size: 18, weight: .semibold, design: .rounded).monospacedDigit())
+                    liveClock(context.state, fontSize: 18)
                 }
                 DynamicIslandExpandedRegion(.center) {
                     Text(context.state.taskTitle)
-                        .font(.headline)
+                        .font(.system(size: 14, weight: .semibold))
                         .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     Text(statusCaption(context.state))
@@ -35,9 +35,8 @@ struct FocusLiveActivityWidget: Widget {
                 Image(systemName: "leaf.fill")
                     .foregroundStyle(QueueWidgetColors.sage)
             } compactTrailing: {
-                Text(FocusTimerFormatting.clock(context.state.remaining()))
-                    .font(.system(size: 14, weight: .semibold, design: .rounded).monospacedDigit())
-                    .minimumScaleFactor(0.7)
+                liveClock(context.state, fontSize: 14)
+                    .minimumScaleFactor(0.6)
             } minimal: {
                 Image(systemName: "leaf.fill")
                     .foregroundStyle(QueueWidgetColors.sage)
@@ -47,20 +46,26 @@ struct FocusLiveActivityWidget: Widget {
 
     @ViewBuilder
     private func lockScreenView(context: ActivityViewContext<FocusActivityAttributes>) -> some View {
-        let remaining = context.state.remaining()
+        let snapshot = FocusWidgetSnapshot(
+            taskID: context.attributes.taskID,
+            taskTitle: context.state.taskTitle,
+            difficultyDisplayName: context.state.difficultyDisplayName,
+            estimatedDuration: context.state.estimatedDuration,
+            session: context.state.session
+        )
         let progress = context.state.progress()
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(context.state.taskTitle)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(QueueWidgetColors.ivory)
                     .lineLimit(2)
+                    .minimumScaleFactor(0.8)
                 Text(statusCaption(context.state))
                     .font(.caption)
                     .foregroundStyle(QueueWidgetColors.ivory.opacity(0.55))
-                Text(FocusTimerFormatting.clock(remaining))
-                    .font(.system(size: 32, weight: .medium, design: .rounded).monospacedDigit())
-                    .foregroundStyle(QueueWidgetColors.ivory)
+                    .lineLimit(1)
+                LiveCountdownText(snapshot: snapshot, at: Date(), fontSize: 30)
             }
             Spacer(minLength: 0)
             WidgetCompanionBadge(
@@ -78,6 +83,20 @@ struct FocusLiveActivityWidget: Widget {
         .activityBackgroundTint(QueueWidgetColors.charcoal)
         .activitySystemActionForegroundColor(QueueWidgetColors.ivory)
         .widgetURL(QueueDeepLink.focus)
+    }
+
+    @ViewBuilder
+    private func liveClock(_ state: FocusActivityAttributes.ContentState, fontSize: CGFloat) -> some View {
+        let now = Date()
+        if state.session.state == .running, let end = state.session.runningEndDate(at: now) {
+            Text(timerInterval: now...end, countsDown: true)
+                .font(.system(size: fontSize, weight: .semibold, design: .rounded).monospacedDigit())
+                .lineLimit(1)
+        } else {
+            Text(FocusTimerFormatting.clock(state.remaining(at: now)))
+                .font(.system(size: fontSize, weight: .semibold, design: .rounded).monospacedDigit())
+                .lineLimit(1)
+        }
     }
 
     private func statusCaption(_ state: FocusActivityAttributes.ContentState) -> String {

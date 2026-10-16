@@ -19,19 +19,22 @@ struct FocusTimerProvider: TimelineProvider {
             return
         }
 
-        var entries: [FocusTimerEntry] = []
-        // Dense near expiry so the last minute feels live; coarser earlier to save battery.
-        var offset: TimeInterval = 0
-        let horizon: TimeInterval = 15 * 60
-        while offset <= horizon {
-            let date = now.addingTimeInterval(offset)
-            entries.append(FocusTimerEntry(date: date, snapshot: snapshot))
-            let remaining = snapshot.session.remaining(at: date)
-            if remaining <= 0 { break }
-            offset += remaining <= 120 ? 5 : 15
+        // Clock uses Text(timerInterval:) so it keeps ticking without the app.
+        // Timeline only refreshes for progress-ring / state changes.
+        var entries: [FocusTimerEntry] = [FocusTimerEntry(date: now, snapshot: snapshot)]
+        if snapshot.session.state == .running, let end = snapshot.runningEndDate(at: now) {
+            // Re-render at expiry so paused/expired chrome can take over.
+            entries.append(FocusTimerEntry(date: end, snapshot: snapshot))
+            // Occasional mid-session refresh for the progress ring.
+            let mid = now.addingTimeInterval(min(60, max(15, end.timeIntervalSince(now) / 4)))
+            if mid < end {
+                entries.insert(FocusTimerEntry(date: mid, snapshot: snapshot), at: 1)
+            }
+            entries.sort { $0.date < $1.date }
+            completion(Timeline(entries: entries, policy: .after(end.addingTimeInterval(1))))
+        } else {
+            completion(Timeline(entries: entries, policy: .after(now.addingTimeInterval(5 * 60))))
         }
-        let refresh = entries.last?.date.addingTimeInterval(5) ?? now.addingTimeInterval(60)
-        completion(Timeline(entries: entries, policy: .after(refresh)))
     }
 }
 
@@ -59,19 +62,20 @@ struct FocusTimerWidgetView: View {
     }
 
     private func activeView(_ snapshot: FocusWidgetSnapshot) -> some View {
-        let remaining = snapshot.remaining(at: entry.date)
         let progress = snapshot.progress(at: entry.date)
 
         return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(snapshot.taskTitle)
-                        .font(.system(size: family == .systemSmall ? 14 : 16, weight: .semibold, design: .rounded))
+                        .font(.system(size: family == .systemSmall ? 13 : 15, weight: .semibold, design: .rounded))
                         .foregroundStyle(QueueWidgetColors.ivory)
-                        .lineLimit(family == .systemSmall ? 2 : 3)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.75)
                     Text(statusLine(snapshot))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(QueueWidgetColors.ivory.opacity(0.55))
+                        .lineLimit(1)
                 }
                 Spacer(minLength: 4)
                 WidgetCompanionBadge(state: companionState(snapshot), progress: progress)
@@ -79,15 +83,13 @@ struct FocusTimerWidgetView: View {
 
             Spacer(minLength: 0)
 
-            Text(FocusTimerFormatting.clock(remaining))
-                .font(.system(size: family == .systemSmall ? 28 : 36, weight: .medium, design: .rounded).monospacedDigit())
-                .foregroundStyle(QueueWidgetColors.ivory)
+            LiveCountdownText(
+                snapshot: snapshot,
+                at: entry.date,
+                fontSize: family == .systemSmall ? 26 : 34
+            )
         }
         .padding(14)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(snapshot.taskTitle), \(FocusTimerFormatting.spoken(remaining)) remaining"
-        )
     }
 
     private var emptyView: some View {
@@ -158,7 +160,6 @@ private struct LockScreenFocusView: View {
     var body: some View {
         Group {
             if let snapshot = entry.snapshot, snapshot.isActivelyTiming {
-                let remaining = snapshot.remaining(at: entry.date)
                 switch family {
                 case .accessoryCircular:
                     ZStack {
@@ -166,18 +167,31 @@ private struct LockScreenFocusView: View {
                             Text("Focus")
                         }
                         .gaugeStyle(.accessoryCircularCapacity)
-                        Text(shortClock(remaining))
-                            .font(.system(size: 12, weight: .semibold, design: .rounded).monospacedDigit())
+                        if snapshot.session.state == .running,
+                           let end = snapshot.runningEndDate(at: entry.date) {
+                            Text(timerInterval: entry.date...end, countsDown: true)
+                                .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
+                                .minimumScaleFactor(0.5)
+                        } else {
+                            Text(FocusTimerFormatting.clock(snapshot.remaining(at: entry.date)))
+                                .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
+                        }
                     }
                 case .accessoryInline:
-                    Text("\(FocusTimerFormatting.clock(remaining)) · \(snapshot.taskTitle)")
+                    if snapshot.session.state == .running,
+                       let end = snapshot.runningEndDate(at: entry.date) {
+                        Text(timerInterval: entry.date...end, countsDown: true)
+                        + Text(" · \(snapshot.taskTitle)")
+                    } else {
+                        Text("\(FocusTimerFormatting.clock(snapshot.remaining(at: entry.date))) · \(snapshot.taskTitle)")
+                    }
                 default:
                     VStack(alignment: .leading, spacing: 2) {
                         Text(snapshot.taskTitle)
-                            .font(.headline)
+                            .font(.system(size: 13, weight: .semibold))
                             .lineLimit(1)
-                        Text(FocusTimerFormatting.clock(remaining))
-                            .font(.system(size: 20, weight: .medium, design: .rounded).monospacedDigit())
+                            .minimumScaleFactor(0.8)
+                        LiveCountdownText(snapshot: snapshot, at: entry.date, fontSize: 18)
                     }
                 }
             } else {
@@ -194,17 +208,13 @@ private struct LockScreenFocusView: View {
         }
         .containerBackground(for: .widget) { Color.clear }
     }
-
-    private func shortClock(_ interval: TimeInterval) -> String {
-        let total = max(0, Int(interval.rounded(.up)))
-        return "\(total / 60)m"
-    }
 }
 
-// MARK: - Widget-local visuals (no app-target dependency)
+// MARK: - Widget-local visuals
 
 enum QueueWidgetColors {
     static let ivory = Color(red: 0.98, green: 0.97, blue: 0.94)
+    static let cream = Color(red: 0.96, green: 0.93, blue: 0.86)
     static let sage = Color(red: 0.78, green: 0.84, blue: 0.76)
     static let sageDeep = Color(red: 0.45, green: 0.55, blue: 0.48)
     static let charcoal = Color(red: 0.14, green: 0.15, blue: 0.16)
@@ -228,18 +238,17 @@ struct WidgetCompanionBadge: View {
                 .stroke(QueueWidgetColors.reward.opacity(0.9), style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))
 
-            // Compact desk companion pose
             ZStack {
                 Capsule()
                     .fill(Color(red: 0.42, green: 0.32, blue: 0.24).opacity(0.9))
                     .frame(width: 28, height: 4)
                     .offset(y: 12)
                 Circle()
-                    .fill(QueueWidgetColors.sage)
+                    .fill(QueueWidgetColors.cream)
                     .frame(width: 14, height: 14)
                     .offset(y: -4)
                 Capsule()
-                    .fill(QueueWidgetColors.sage)
+                    .fill(QueueWidgetColors.cream)
                     .frame(width: 18, height: 12)
                     .offset(y: 6)
                 RoundedRectangle(cornerRadius: 1)

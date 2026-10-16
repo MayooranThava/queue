@@ -28,6 +28,22 @@ struct FocusWidgetSnapshotTests {
         #expect(snapshot.remaining(at: at) == 420)
         #expect(abs(snapshot.progress(at: at) - 0.7) < 0.001)
         #expect(snapshot.isActivelyTiming)
+        let end = snapshot.runningEndDate(at: at)
+        #expect(end == at.addingTimeInterval(420))
+    }
+
+    @Test("Paused sessions have no live end date")
+    func pausedHasNoRunningEnd() {
+        let start = Date()
+        let session = FocusSession(
+            taskID: UUID(),
+            sessionStart: start,
+            segmentStart: start,
+            plannedDuration: 300,
+            accumulatedActive: 40,
+            state: .paused
+        )
+        #expect(session.runningEndDate(at: start) == nil)
     }
 
     @Test("Clock formatting pads minutes and seconds")

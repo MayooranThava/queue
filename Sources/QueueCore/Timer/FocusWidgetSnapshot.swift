@@ -35,6 +35,11 @@ public struct FocusWidgetSnapshot: Codable, Sendable, Equatable {
         return session.remaining(at: now) / total
     }
 
+    /// Live countdown end while running. `nil` when paused/expired — callers show a static clock.
+    public func runningEndDate(at now: Date = Date()) -> Date? {
+        session.runningEndDate(at: now)
+    }
+
     public var isActivelyTiming: Bool {
         switch session.state {
         case .running, .paused, .expired:

@@ -54,18 +54,23 @@ Celebrations are **skippable**. Never block navigation. With Reduce Motion: cros
 
 ### Native companion detail (current)
 
-Storyboard-aligned desk scene: warm desk, laptop with leaf mark, plant, props per state.
-Draw order is body → laptop → arms/props so the companion reads as *working*, not a blinking blob.
+Layered vector scene in a fixed **512×512** design space (`Features/Companion`), guided by
+`DesignReferences/queue-character-concept.png` — **not** cropped sprite playback.
 
-| State | Extra motion |
-| --- | --- |
-| idle | Soft breath, `...` bubble, dim laptop |
-| preparing | Mug + steam, settle bob, screen warm-up |
-| working | Lamp on, alternating typing hands + forearms, laptop glow, lean, blink; deep-focus beat with headphones + notes |
-| paused | Slumped posture, floating Z marks, dim screen |
-| timerExpired | Soft scribble thought bubble, empty hourglass (never angry) |
-| celebrating | Arms up + hop + restrained orbit sparkles + smile |
-| levelUp | Held glowing star + stronger sparkles |
+Cream companion, warm lamp, fixed desk / laptop / plant / books. Only character motion + effects animate.
+
+| State | Loop / once | Motion |
+| --- | --- | --- |
+| idle | loop | Soft breath, `...` bubble |
+| preparing | loop | Mug in hands, screen warm-up |
+| working | **2.6s seamless loop** | Lamp on, alternating typing arms, independent blinks, subtle lean |
+| deepFocus | **3.5s loop** | Headphones, calmer hands, closed-eye beats, floating notes |
+| paused | loop | Dim screen, slower breath |
+| timerExpired | **~1.5s once** | Hourglass, scribble → lightbulb (encouraging) |
+| celebrating / completed | **~1.7s once** | Smile, arms up, bounce, sage/gold sparkles |
+| levelUp | once | Celebrate + held glowing star |
+
+Differences vs concept sheet (intentional for maintainability): vector recreation rather than frame crops; leaf logo simplified; particle count restrained for Focus performance.
 
 `CompanionAnimationView(compact: true)` keeps the same scene readable inside the Queue “Now” card.
 
@@ -74,8 +79,9 @@ Completion: staged entrance → XP count (`motion.xpCount`) → level bar fill �
 ### Timer visibility outside Focus
 
 - Queue “Now” card shows a live `TimelineView` countdown + mini ring while a session is running/paused/expired
-- `FocusActivityStore` (App Group) mirrors timestamps for Home Screen widgets + Live Activities
-- Widgets reload via `WidgetCenter`; Live Activity content state carries the same `FocusSession`
+- Home Screen widgets + Live Activities use **`Text(timerInterval:countsDown:)`** so the clock keeps ticking while the app is suspended
+- `FocusActivityStore` (App Group) mirrors timestamps; timeline refreshes mainly for progress ring / expiry chrome
+- Task titles use smaller type + `lineLimit` / `minimumScaleFactor` so they don’t clip beside the companion
 
 ## Visual language reminders
 

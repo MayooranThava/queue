@@ -320,8 +320,10 @@ private struct ActiveTaskHero: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: QueueSpacing.xs) {
                     Text(task.title)
-                        .font(QueueTypography.title(30))
+                        .font(QueueTypography.title(22))
                         .foregroundStyle(QueueColors.primaryText)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.78)
                         .accessibilityAddTraits(.isHeader)
 
                     if focusSnapshot == nil {
@@ -401,7 +403,7 @@ private struct ActiveTaskHero: View {
             let remaining = snapshot.remaining(at: context.date)
             VStack(alignment: .leading, spacing: 4) {
                 Text(FocusTimerFormatting.clock(remaining))
-                    .font(QueueTypography.monoTimer(36))
+                    .font(QueueTypography.monoTimer(34))
                     .foregroundStyle(QueueColors.primaryText)
                     .contentTransition(.numericText())
                     .accessibilityLabel("Time remaining \(FocusTimerFormatting.spoken(remaining))")
