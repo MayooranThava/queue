@@ -29,7 +29,7 @@ targets:
         product: QueueCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.queueapp.Queue
+        PRODUCT_BUNDLE_IDENTIFIER: com.queueapp.Queueup
         INFOPLIST_FILE: Queue/Resources/Info.plist
         GENERATE_INFOPLIST_FILE: false
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -60,7 +60,7 @@ targets:
         product: QueueCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.queueapp.QueueTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.queueapp.QueueupTests
         GENERATE_INFOPLIST_FILE: true
 schemes:
   Queue:

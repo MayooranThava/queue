@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PROJECT_NAME = "Queue"
-BUNDLE_ID = "com.queueapp.Queue"
+BUNDLE_ID = "com.queueapp.Queueup"
 DEPLOYMENT = "17.0"
 
 
@@ -323,7 +323,7 @@ def main() -> None:
         "CURRENT_PROJECT_VERSION": "1",
         "GENERATE_INFOPLIST_FILE": "YES",
         "MARKETING_VERSION": "0.1.0",
-        "PRODUCT_BUNDLE_IDENTIFIER": "com.queueapp.QueueTests",
+        "PRODUCT_BUNDLE_IDENTIFIER": "com.queueapp.QueueupTests",
         "PRODUCT_NAME": '"$(TARGET_NAME)"',
         "SWIFT_EMIT_LOC_STRINGS": "NO",
         "TARGETED_DEVICE_FAMILY": '"1"',
