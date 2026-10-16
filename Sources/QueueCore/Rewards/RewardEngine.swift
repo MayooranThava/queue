@@ -186,6 +186,21 @@ public actor RewardEngine {
         seenKeys = Set(transactions.map { Self.key(source: $0.sourceEventID, type: $0.rewardType) })
     }
 
+    /// Removes all awards for a completion event (undo). Returns revoked rows.
+    public func revoke(sourceEventID: UUID) -> [XPTransaction] {
+        let removed = ledger.filter { $0.sourceEventID == sourceEventID }
+        guard !removed.isEmpty else { return [] }
+        ledger.removeAll { $0.sourceEventID == sourceEventID }
+        for tx in removed {
+            seenKeys.remove(Self.key(source: tx.sourceEventID, type: tx.rewardType))
+        }
+        return removed
+    }
+
+    public func transactions(forSourceEventID sourceEventID: UUID) -> [XPTransaction] {
+        ledger.filter { $0.sourceEventID == sourceEventID }
+    }
+
     public func awardTaskCompletion(
         sourceEventID: UUID,
         taskID: UUID,

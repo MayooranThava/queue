@@ -117,6 +117,32 @@ struct RewardEngineTests {
         #expect(result.levelsCrossed.map(\.name) == ["B", "C"])
     }
 
+    @Test("Revoke removes awards so undo cannot double-pay later")
+    func revokeUndoesAward() async {
+        let engine = RewardEngine(clock: ControllableClock())
+        let source = UUID()
+        let awarded = await engine.awardTaskCompletion(
+            sourceEventID: source,
+            taskID: UUID(),
+            difficulty: .medium,
+            estimatedDuration: 15 * 60,
+            actualFocusDuration: 12 * 60
+        )
+        #expect(awarded.awardedXP > 0)
+        let revoked = await engine.revoke(sourceEventID: source)
+        #expect(revoked.count == awarded.transactions.count)
+        #expect(await engine.totalXP() == 0)
+
+        let again = await engine.awardTaskCompletion(
+            sourceEventID: source,
+            taskID: UUID(),
+            difficulty: .medium,
+            estimatedDuration: 15 * 60,
+            actualFocusDuration: 12 * 60
+        )
+        #expect(again.awardedXP == awarded.awardedXP)
+    }
+
     @Test("Speed runner boosts on-time bonus")
     func speedRunner() async {
         let balanced = RewardEngine(clock: ControllableClock(), profile: .balanced)

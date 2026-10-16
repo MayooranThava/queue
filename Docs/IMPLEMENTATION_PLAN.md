@@ -53,7 +53,12 @@
 - SwiftData `XPTransactionEntity`; Progress tab shows level/XP
 - 20 Swift Testing domain tests via `swift test` (Linux)
 
-**Not verified here:** Full iOS app compile/simulator (no Xcode on this Linux environment). Local notifications / session restore polish remain Phase 2 follow-ups.
+**Hardening follow-up (same PR track):**
+- Continue focus resumes an in-progress session (no invalid `.start` from `.active`)
+- `FocusSessionEntity` persists timestamps; bootstrap restores after kill/relaunch
+- Completion undo banner + `RewardEngine.revoke` so XP cannot be double-farmed
+
+**Not verified here:** Full iOS app compile/simulator (no Xcode on this Linux environment). Local notifications remain a Phase 2 follow-up.
 
 ### Phase 4 — Calendar + Smart Gaps
 
