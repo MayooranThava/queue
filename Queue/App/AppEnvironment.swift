@@ -17,6 +17,8 @@ final class AppServices: ObservableObject {
     @Published private(set) var undoBannerTitle: String?
     /// Live focus snapshot for Queue chrome (timer stays visible outside Focus).
     @Published private(set) var focusSnapshot: FocusWidgetSnapshot?
+    /// Set when a widget / Live Activity asks to jump straight into focus.
+    @Published var pendingOpenFocus = false
     private var undoClearTask: Task<Void, Never>?
     private var didBootstrap = false
 

@@ -91,11 +91,22 @@ struct QueueHomeView: View {
                 Task { await services.refreshFocusSnapshot() }
             }
         }
+        .onChange(of: services.pendingOpenFocus) { _, shouldOpen in
+            guard shouldOpen else { return }
+            openFocusFromDeepLink()
+        }
         .safeAreaInset(edge: .bottom) {
             if let undoTitle = services.undoBannerTitle {
                 undoBanner(title: undoTitle)
             }
         }
+    }
+
+    private func openFocusFromDeepLink() {
+        defer { services.pendingOpenFocus = false }
+        guard let headTask else { return }
+        // Prefer continuing an active session; otherwise start the head of the queue.
+        focusTask = headTask
     }
 
     private var emptyState: some View {
@@ -327,6 +338,13 @@ private struct ActiveTaskHero: View {
                 liveTimer(snapshot: focusSnapshot)
             }
 
+            if focusSnapshot != nil {
+                Label(focusBadgeTitle(for: focusSnapshot), systemImage: "leaf.fill")
+                    .font(QueueTypography.caption())
+                    .foregroundStyle(QueueColors.sageDeep)
+                    .accessibilityHidden(true)
+            }
+
             if let notes = task.notes, !notes.isEmpty {
                 Text(notes)
                     .font(QueueTypography.body(15))
@@ -412,6 +430,14 @@ private struct ActiveTaskHero: View {
     private func durationLabel(_ interval: TimeInterval) -> String {
         let minutes = max(1, Int(interval / 60))
         return "\(minutes) min estimate"
+    }
+
+    private func focusBadgeTitle(for snapshot: FocusWidgetSnapshot?) -> String {
+        switch snapshot?.session.state {
+        case .paused: return "Paused — timer keeps your place"
+        case .expired: return "Over estimate — finish when ready"
+        default: return "Timer stays on Queue and Home Screen"
+        }
     }
 }
 
