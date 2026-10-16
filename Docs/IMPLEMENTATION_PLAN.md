@@ -30,34 +30,30 @@
 - Inspect repo, tooling, design access
 - Architecture, PRD, plan, testing, animation, Microsoft setup docs
 
-### Phase 1 — App foundation (current)
+### Phase 1 — App foundation ✅
 
 **Build:** App entry, tab navigation, design system, SwiftData, task model, Queue screen, add/edit, FIFO service, onboarding shell.
 
 **Acceptance:** Create, edit, reorder, persist tasks.
 
-**Tests:** FIFO ordering, single active invariant, reorder, invalid transitions.
+### Phase 2–3 — Focus + rewards (current)
+
+**Build:** Instant focus countdown (timestamp-backed), working companion, pause/extend/expiry, completion celebration, fair Effort XP (difficulty × duration × budget), optional Up-next start-time toggle, Progress XP/level surface, XP ledger persistence.
+
+**Acceptance:**
+- Start focus begins countdown immediately with working animation
+- Complete awards idempotent XP (never negative for overtime)
+- Up next can toggle durations ↔ projected/planned start times
+- Domain tests cover timer, XP, and schedule projection
 
 **Done in this milestone:**
-- `QueueCore` package with task state machine, FIFO service, timer engine, reward ledger, Smart Gaps algorithm
-- 15 Swift Testing domain tests passing via `swift test` (Linux)
-- iOS app scaffold: onboarding, Queue home, add/edit/reorder, SwiftData persistence, companion SwiftUI fallback, tab placeholders, Focus shell
-- `Queue.xcodeproj` + `project.yml` (XcodeGen) + generator script
-- Docs under `Docs/`
+- `FocusSessionView` + `CompletionCelebrationView` (skippable)
+- `XPCalculator` fair formula + `RewardEngine` ledger restore
+- `TaskDifficulty`, optional `plannedStartAt`, `QueueSchedule` projections
+- SwiftData `XPTransactionEntity`; Progress tab shows level/XP
+- 20 Swift Testing domain tests via `swift test` (Linux)
 
-**Not verified here:** Full iOS app compile/simulator (no Xcode on this Linux environment).
-
-### Phase 2 — Focus engine
-
-Timer state machine, Focus screen, pause/resume/extend/expiry, notifications, session restore.
-
-**Acceptance:** Correct timing across background, kill, lock, navigation.
-
-### Phase 3 — Companion and rewards
-
-Native companion, completion animation, XP ledger, levels, Progress, streaks, Reduce Motion.
-
-**Acceptance:** Exactly one XP award per completion; skippable celebration.
+**Not verified here:** Full iOS app compile/simulator (no Xcode on this Linux environment). Local notifications / session restore polish remain Phase 2 follow-ups.
 
 ### Phase 4 — Calendar + Smart Gaps
 

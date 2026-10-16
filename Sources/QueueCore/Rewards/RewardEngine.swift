@@ -14,49 +14,39 @@ public enum RewardType: String, Codable, Sendable, CaseIterable {
 }
 
 public struct RewardConfig: Sendable, Equatable {
-    public var taskCompletedXP: Int
-    public var withinEstimateXP: Int
+    /// Scales with `sqrt(estimatedMinutes)` for base completion XP.
+    public var basePerSqrtMinute: Double
+    public var minBaseXP: Int
+    /// Fraction of base XP awarded when finishing within estimate.
+    public var punctualityBonusRatio: Double
+    /// Fraction of base XP awarded when slightly over budget (≤ soft grace).
+    public var softGraceBonusRatio: Double
     public var dailyGoalXP: Int
     public var streakMilestoneXP: Int
 
     public static let `default` = RewardConfig(
-        taskCompletedXP: 50,
-        withinEstimateXP: 20,
+        basePerSqrtMinute: 8,
+        minBaseXP: 15,
+        punctualityBonusRatio: 0.35,
+        softGraceBonusRatio: 0.15,
         dailyGoalXP: 40,
         streakMilestoneXP: 30
     )
 
     public init(
-        taskCompletedXP: Int,
-        withinEstimateXP: Int,
+        basePerSqrtMinute: Double,
+        minBaseXP: Int,
+        punctualityBonusRatio: Double,
+        softGraceBonusRatio: Double,
         dailyGoalXP: Int,
         streakMilestoneXP: Int
     ) {
-        self.taskCompletedXP = taskCompletedXP
-        self.withinEstimateXP = withinEstimateXP
+        self.basePerSqrtMinute = basePerSqrtMinute
+        self.minBaseXP = minBaseXP
+        self.punctualityBonusRatio = punctualityBonusRatio
+        self.softGraceBonusRatio = softGraceBonusRatio
         self.dailyGoalXP = dailyGoalXP
         self.streakMilestoneXP = streakMilestoneXP
-    }
-
-    public func scaled(for profile: MotivationProfile) -> RewardConfig {
-        switch profile {
-        case .balanced:
-            return self
-        case .speedRunner:
-            return RewardConfig(
-                taskCompletedXP: taskCompletedXP,
-                withinEstimateXP: Int((Double(withinEstimateXP) * 1.5).rounded()),
-                dailyGoalXP: dailyGoalXP,
-                streakMilestoneXP: streakMilestoneXP
-            )
-        case .consistencyBuilder:
-            return RewardConfig(
-                taskCompletedXP: taskCompletedXP,
-                withinEstimateXP: max(10, withinEstimateXP / 2),
-                dailyGoalXP: Int((Double(dailyGoalXP) * 1.25).rounded()),
-                streakMilestoneXP: Int((Double(streakMilestoneXP) * 1.5).rounded())
-            )
-        }
     }
 }
 
@@ -123,6 +113,23 @@ public enum LevelTable {
             .sorted { $0.minimumXP < $1.minimumXP }
             .filter { $0.minimumXP > previousXP && $0.minimumXP <= newXP }
     }
+
+    public static func progress(towardNext levelXP: Int, table: [LevelDefinition] = standard) -> (
+        current: LevelDefinition,
+        next: LevelDefinition?,
+        fraction: Double
+    ) {
+        let current = level(forXP: levelXP, table: table)
+        let sorted = table.sorted { $0.minimumXP < $1.minimumXP }
+        let next = sorted.first { $0.minimumXP > current.minimumXP }
+        guard let next else {
+            return (current, nil, 1)
+        }
+        let span = Double(next.minimumXP - current.minimumXP)
+        guard span > 0 else { return (current, next, 1) }
+        let fraction = Double(levelXP - current.minimumXP) / span
+        return (current, next, min(1, max(0, fraction)))
+    }
 }
 
 public struct RewardAwardResult: Sendable, Equatable {
@@ -130,6 +137,7 @@ public struct RewardAwardResult: Sendable, Equatable {
     public let totalXP: Int
     public let previousXP: Int
     public let levelsCrossed: [LevelDefinition]
+    public let breakdown: XPBreakdown
 
     public var awardedXP: Int {
         transactions.reduce(0) { $0 + $1.amount }
@@ -172,32 +180,45 @@ public actor RewardEngine {
         self.profile = profile
     }
 
+    /// Replaces the in-memory ledger with persisted transactions (bootstrap).
+    public func restore(transactions: [XPTransaction]) {
+        ledger = transactions
+        seenKeys = Set(transactions.map { Self.key(source: $0.sourceEventID, type: $0.rewardType) })
+    }
+
     public func awardTaskCompletion(
         sourceEventID: UUID,
         taskID: UUID,
+        difficulty: TaskDifficulty = .medium,
         estimatedDuration: TimeInterval,
         actualFocusDuration: TimeInterval,
         dailyGoalMet: Bool = false
     ) -> RewardAwardResult {
         let previous = totalXP()
         var created: [XPTransaction] = []
-        let scaled = config.scaled(for: profile)
+        let breakdown = XPCalculator.breakdown(
+            difficulty: difficulty,
+            estimatedDuration: estimatedDuration,
+            actualFocusDuration: actualFocusDuration,
+            profile: profile,
+            config: config
+        )
 
         if let tx = insert(
             sourceEventID: sourceEventID,
             taskID: taskID,
             type: .taskCompleted,
-            amount: scaled.taskCompletedXP
+            amount: breakdown.baseXP
         ) {
             created.append(tx)
         }
 
-        if actualFocusDuration > 0, actualFocusDuration <= estimatedDuration {
+        if breakdown.punctualityBonus > 0 {
             if let tx = insert(
                 sourceEventID: sourceEventID,
                 taskID: taskID,
                 type: .completedWithinEstimate,
-                amount: scaled.withinEstimateXP
+                amount: breakdown.punctualityBonus
             ) {
                 created.append(tx)
             }
@@ -208,7 +229,7 @@ public actor RewardEngine {
                 sourceEventID: sourceEventID,
                 taskID: taskID,
                 type: .dailyGoal,
-                amount: scaled.dailyGoalXP
+                amount: config.dailyGoalXP
             ) {
                 created.append(tx)
             }
@@ -219,7 +240,8 @@ public actor RewardEngine {
             transactions: created,
             totalXP: newTotal,
             previousXP: previous,
-            levelsCrossed: LevelTable.levelsCrossed(from: previous, to: newTotal, table: levels)
+            levelsCrossed: LevelTable.levelsCrossed(from: previous, to: newTotal, table: levels),
+            breakdown: breakdown
         )
     }
 

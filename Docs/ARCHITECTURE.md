@@ -82,6 +82,8 @@ Pure domain types and services with no UIKit/SwiftUI/SwiftData imports.
 | title | String | Required |
 | notes | String? | Optional |
 | estimatedDuration | Duration | Guidance, not punishment |
+| difficulty | TaskDifficulty | trivial…hard — scales XP only |
+| plannedStartAt | Date? | Optional preferred start; Up-next toggle |
 | createdAt | Date | |
 | scheduledDate | Date? | Calendar day association |
 | queuePosition | Int | FIFO order among non-terminal tasks |

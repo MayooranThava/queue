@@ -118,6 +118,10 @@ public actor FocusTimerEngine {
         session = restored
     }
 
+    public func clear() {
+        session = nil
+    }
+
     public func pause() throws -> FocusSession {
         guard var current = session else { throw FocusTimerError.noActiveSession }
         guard current.state == .running else { throw FocusTimerError.invalidState }
