@@ -34,6 +34,8 @@ public actor TaskQueueService {
         title: String,
         notes: String? = nil,
         estimatedDuration: TimeInterval = 25 * 60,
+        difficulty: TaskDifficulty = .medium,
+        plannedStartAt: Date? = nil,
         scheduledDate: Date? = nil,
         category: String? = nil
     ) throws -> QueueTask {
@@ -48,6 +50,8 @@ public actor TaskQueueService {
             title: trimmed,
             notes: notes,
             estimatedDuration: estimatedDuration,
+            difficulty: difficulty,
+            plannedStartAt: plannedStartAt,
             createdAt: now,
             scheduledDate: scheduledDate,
             queuePosition: position,
@@ -64,6 +68,8 @@ public actor TaskQueueService {
         title: String? = nil,
         notes: String?? = nil,
         estimatedDuration: TimeInterval? = nil,
+        difficulty: TaskDifficulty? = nil,
+        plannedStartAt: Date?? = nil,
         scheduledDate: Date?? = nil,
         category: String?? = nil
     ) throws -> QueueTask {
@@ -75,6 +81,8 @@ public actor TaskQueueService {
         }
         if let notes { task.notes = notes }
         if let estimatedDuration { task.estimatedDuration = estimatedDuration }
+        if let difficulty { task.difficulty = difficulty }
+        if let plannedStartAt { task.plannedStartAt = plannedStartAt }
         if let scheduledDate { task.scheduledDate = scheduledDate }
         if let category { task.category = category }
         task.modifiedAt = clock.now()
@@ -106,6 +114,14 @@ public actor TaskQueueService {
         }
         lastCompletedSnapshot = completed
         return completed
+    }
+
+    public func attachXPAward(id: UUID, awardID: UUID) throws -> QueueTask {
+        guard var task = tasks[id] else { throw TaskTransitionError.taskNotFound }
+        task.xpAwardID = awardID
+        task.modifiedAt = clock.now()
+        tasks[id] = task
+        return task
     }
 
     public func undoLastCompletion() throws -> QueueTask {

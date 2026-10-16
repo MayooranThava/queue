@@ -10,6 +10,8 @@ struct QueueHomeView: View {
         SortDescriptor(\TaskEntity.createdAt)
     ]) private var taskEntities: [TaskEntity]
 
+    @AppStorage("showPlannedStartTimes") private var showPlannedStartTimes = false
+
     @State private var showAddTask = false
     @State private var editingTask: QueueTask?
     @State private var focusTask: QueueTask?
@@ -26,6 +28,10 @@ struct QueueHomeView: View {
     private var headTask: QueueTask? { activeTasks.first }
     private var upcoming: [QueueTask] {
         Array(activeTasks.dropFirst())
+    }
+
+    private var projectedStarts: [UUID: Date] {
+        QueueSchedule.projectedStarts(orderedActiveTasks: activeTasks, from: Date())
     }
 
     var body: some View {
@@ -55,17 +61,17 @@ struct QueueHomeView: View {
             }
         }
         .sheet(isPresented: $showAddTask) {
-            AddEditTaskView { title, notes, duration in
-                await createTask(title: title, notes: notes, duration: duration)
+            AddEditTaskView { draft in
+                await createTask(draft)
             }
         }
         .sheet(item: $editingTask) { task in
-            AddEditTaskView(existing: task) { title, notes, duration in
-                await updateTask(task, title: title, notes: notes, duration: duration)
+            AddEditTaskView(existing: task) { draft in
+                await updateTask(task, draft: draft)
             }
         }
         .fullScreenCover(item: $focusTask) { task in
-            FocusPlaceholderView(task: task)
+            FocusSessionView(task: task)
         }
         .alert("Something went wrong", isPresented: Binding(
             get: { errorMessage != nil },
@@ -115,6 +121,7 @@ struct QueueHomeView: View {
                 Section {
                     ActiveTaskHero(
                         task: headTask,
+                        isAlreadyFocusing: headTask.status == .active || headTask.status == .paused || headTask.status == .expired,
                         onEdit: { editingTask = headTask },
                         onFocus: { focusTask = headTask }
                     )
@@ -137,23 +144,41 @@ struct QueueHomeView: View {
             if !upcoming.isEmpty {
                 Section {
                     ForEach(upcoming) { task in
-                        UpcomingTaskRow(task: task)
-                            .contentShape(Rectangle())
-                            .onTapGesture { editingTask = task }
-                            .listRowInsets(EdgeInsets(
-                                top: QueueSpacing.sm,
-                                leading: QueueSpacing.md,
-                                bottom: QueueSpacing.sm,
-                                trailing: QueueSpacing.md
-                            ))
-                            .listRowBackground(QueueColors.secondarySurface.opacity(0.35))
+                        UpcomingTaskRow(
+                            task: task,
+                            showStartTime: showPlannedStartTimes,
+                            startTime: projectedStarts[task.id]
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture { editingTask = task }
+                        .listRowInsets(EdgeInsets(
+                            top: QueueSpacing.sm,
+                            leading: QueueSpacing.md,
+                            bottom: QueueSpacing.sm,
+                            trailing: QueueSpacing.md
+                        ))
+                        .listRowBackground(QueueColors.secondarySurface.opacity(0.35))
                     }
                     .onMove(perform: moveUpcoming)
                 } header: {
-                    Text("Up next")
-                        .font(QueueTypography.caption())
-                        .foregroundStyle(QueueColors.secondaryText)
-                        .textCase(nil)
+                    HStack {
+                        Text("Up next")
+                            .font(QueueTypography.caption())
+                            .foregroundStyle(QueueColors.secondaryText)
+                        Spacer()
+                        Toggle(isOn: $showPlannedStartTimes) {
+                            Text(showPlannedStartTimes ? "Start times" : "Durations")
+                                .font(QueueTypography.caption())
+                                .foregroundStyle(QueueColors.sageDeep)
+                        }
+                        .toggleStyle(.button)
+                        .accessibilityLabel(
+                            showPlannedStartTimes
+                                ? "Showing start times. Switch to durations."
+                                : "Showing durations. Switch to start times."
+                        )
+                    }
+                    .textCase(nil)
                 }
             }
         }
@@ -179,28 +204,27 @@ struct QueueHomeView: View {
         .padding(.bottom, QueueSpacing.sm)
     }
 
-    private func createTask(title: String, notes: String?, duration: TimeInterval) async {
+    private func createTask(_ draft: TaskDraft) async {
         do {
             _ = try await services.taskRepository?.create(
-                title: title,
-                notes: notes,
-                estimatedDuration: duration
+                title: draft.title,
+                notes: draft.notes,
+                estimatedDuration: draft.estimatedDuration,
+                difficulty: draft.difficulty,
+                plannedStartAt: draft.plannedStartAt
             )
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    private func updateTask(
-        _ task: QueueTask,
-        title: String,
-        notes: String?,
-        duration: TimeInterval
-    ) async {
+    private func updateTask(_ task: QueueTask, draft: TaskDraft) async {
         var copy = task
-        copy.title = title
-        copy.notes = notes
-        copy.estimatedDuration = duration
+        copy.title = draft.title
+        copy.notes = draft.notes
+        copy.estimatedDuration = draft.estimatedDuration
+        copy.difficulty = draft.difficulty
+        copy.plannedStartAt = draft.plannedStartAt
         do {
             try await services.taskRepository?.update(copy)
         } catch {
@@ -238,6 +262,7 @@ struct QueueHomeView: View {
 
 private struct ActiveTaskHero: View {
     let task: QueueTask
+    var isAlreadyFocusing: Bool = false
     var onEdit: () -> Void
     var onFocus: () -> Void
 
@@ -249,14 +274,17 @@ private struct ActiveTaskHero: View {
                         .font(QueueTypography.title(30))
                         .foregroundStyle(QueueColors.primaryText)
                         .accessibilityAddTraits(.isHeader)
-                    Text(durationLabel(task.estimatedDuration))
+                    Text("\(durationLabel(task.estimatedDuration)) · \(task.difficulty.displayName)")
                         .font(QueueTypography.body())
                         .foregroundStyle(QueueColors.secondaryText)
                 }
                 Spacer()
-                CompanionAnimationView(state: .idle, reduceMotion: false)
-                    .frame(width: 72, height: 72)
-                    .accessibilityHidden(true)
+                CompanionAnimationView(
+                    state: isAlreadyFocusing ? .working : .idle,
+                    reduceMotion: false
+                )
+                .frame(width: 72, height: 72)
+                .accessibilityHidden(true)
             }
 
             if let notes = task.notes, !notes.isEmpty {
@@ -265,9 +293,13 @@ private struct ActiveTaskHero: View {
                     .foregroundStyle(QueueColors.secondaryText)
             }
 
-            Button("Start focus", action: onFocus)
+            Button(isAlreadyFocusing ? "Continue focus" : "Start focus", action: onFocus)
                 .buttonStyle(QueuePrimaryButtonStyle())
-                .accessibilityHint("Opens the immersive focus experience")
+                .accessibilityHint(
+                    isAlreadyFocusing
+                        ? "Returns to the running focus session"
+                        : "Starts the countdown and working animation immediately"
+                )
 
             Button("Edit task", action: onEdit)
                 .font(QueueTypography.caption())
@@ -290,6 +322,14 @@ private struct ActiveTaskHero: View {
 
 private struct UpcomingTaskRow: View {
     let task: QueueTask
+    let showStartTime: Bool
+    let startTime: Date?
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter
+    }()
 
     var body: some View {
         HStack(spacing: QueueSpacing.md) {
@@ -300,7 +340,7 @@ private struct UpcomingTaskRow: View {
                 Text(task.title)
                     .font(QueueTypography.headline(17))
                     .foregroundStyle(QueueColors.primaryText)
-                Text("\(max(1, Int(task.estimatedDuration / 60))) min")
+                Text(subtitle)
                     .font(QueueTypography.caption())
                     .foregroundStyle(QueueColors.secondaryText)
             }
@@ -308,7 +348,15 @@ private struct UpcomingTaskRow: View {
         }
         .padding(.vertical, QueueSpacing.xs)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(task.title), \(max(1, Int(task.estimatedDuration / 60))) minutes")
+        .accessibilityLabel("\(task.title), \(subtitle)")
         .accessibilityHint("Drag to reorder")
+    }
+
+    private var subtitle: String {
+        if showStartTime, let startTime {
+            let prefix = task.plannedStartAt != nil ? "Starts" : "About"
+            return "\(prefix) \(Self.timeFormatter.string(from: startTime))"
+        }
+        return "\(max(1, Int(task.estimatedDuration / 60))) min"
     }
 }

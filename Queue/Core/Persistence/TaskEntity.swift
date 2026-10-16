@@ -8,6 +8,8 @@ final class TaskEntity {
     var title: String
     var notes: String?
     var estimatedDuration: TimeInterval
+    var difficultyRaw: String
+    var plannedStartAt: Date?
     var createdAt: Date
     var scheduledDate: Date?
     var queuePosition: Int
@@ -27,6 +29,8 @@ final class TaskEntity {
         self.title = task.title
         self.notes = task.notes
         self.estimatedDuration = task.estimatedDuration
+        self.difficultyRaw = task.difficulty.rawValue
+        self.plannedStartAt = task.plannedStartAt
         self.createdAt = task.createdAt
         self.scheduledDate = task.scheduledDate
         self.queuePosition = task.queuePosition
@@ -47,10 +51,17 @@ final class TaskEntity {
         set { statusRaw = newValue.rawValue }
     }
 
+    var difficulty: TaskDifficulty {
+        get { TaskDifficulty(rawValue: difficultyRaw) ?? .medium }
+        set { difficultyRaw = newValue.rawValue }
+    }
+
     func apply(_ task: QueueTask) {
         title = task.title
         notes = task.notes
         estimatedDuration = task.estimatedDuration
+        difficultyRaw = task.difficulty.rawValue
+        plannedStartAt = task.plannedStartAt
         createdAt = task.createdAt
         scheduledDate = task.scheduledDate
         queuePosition = task.queuePosition
@@ -79,6 +90,8 @@ final class TaskEntity {
             title: title,
             notes: notes,
             estimatedDuration: estimatedDuration,
+            difficulty: difficulty,
+            plannedStartAt: plannedStartAt,
             createdAt: createdAt,
             scheduledDate: scheduledDate,
             queuePosition: queuePosition,
@@ -97,6 +110,37 @@ final class TaskEntity {
 }
 
 @Model
+final class XPTransactionEntity {
+    @Attribute(.unique) var id: UUID
+    var sourceEventID: UUID
+    var taskID: UUID?
+    var rewardTypeRaw: String
+    var amount: Int
+    var timestamp: Date
+
+    init(from transaction: XPTransaction) {
+        self.id = transaction.id
+        self.sourceEventID = transaction.sourceEventID
+        self.taskID = transaction.taskID
+        self.rewardTypeRaw = transaction.rewardType.rawValue
+        self.amount = transaction.amount
+        self.timestamp = transaction.timestamp
+    }
+
+    func asDomain() -> XPTransaction? {
+        guard let type = RewardType(rawValue: rewardTypeRaw) else { return nil }
+        return XPTransaction(
+            id: id,
+            sourceEventID: sourceEventID,
+            taskID: taskID,
+            rewardType: type,
+            amount: amount,
+            timestamp: timestamp
+        )
+    }
+}
+
+@Model
 final class UserPreferencesEntity {
     var hasCompletedOnboarding: Bool
     var motivationProfileRaw: String
@@ -104,6 +148,7 @@ final class UserPreferencesEntity {
     var animationIntensityRaw: String
     var autoStartNextTask: Bool
     var dailyGoalCount: Int
+    var showPlannedStartTimes: Bool
 
     init(
         hasCompletedOnboarding: Bool = false,
@@ -111,7 +156,8 @@ final class UserPreferencesEntity {
         companionVisible: Bool = true,
         animationIntensity: String = "standard",
         autoStartNextTask: Bool = false,
-        dailyGoalCount: Int = 3
+        dailyGoalCount: Int = 3,
+        showPlannedStartTimes: Bool = false
     ) {
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.motivationProfileRaw = motivationProfile.rawValue
@@ -119,6 +165,7 @@ final class UserPreferencesEntity {
         self.animationIntensityRaw = animationIntensity
         self.autoStartNextTask = autoStartNextTask
         self.dailyGoalCount = dailyGoalCount
+        self.showPlannedStartTimes = showPlannedStartTimes
     }
 
     var motivationProfile: MotivationProfile {

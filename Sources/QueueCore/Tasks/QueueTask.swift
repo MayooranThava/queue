@@ -17,6 +17,9 @@ public struct QueueTask: Identifiable, Codable, Sendable, Equatable {
     public var title: String
     public var notes: String?
     public var estimatedDuration: TimeInterval
+    public var difficulty: TaskDifficulty
+    /// Optional preferred wall-clock start. Display-only unless user opts into start times.
+    public var plannedStartAt: Date?
     public var createdAt: Date
     public var scheduledDate: Date?
     public var queuePosition: Int
@@ -36,6 +39,8 @@ public struct QueueTask: Identifiable, Codable, Sendable, Equatable {
         title: String,
         notes: String? = nil,
         estimatedDuration: TimeInterval = 25 * 60,
+        difficulty: TaskDifficulty = .medium,
+        plannedStartAt: Date? = nil,
         createdAt: Date = Date(),
         scheduledDate: Date? = nil,
         queuePosition: Int = 0,
@@ -54,6 +59,8 @@ public struct QueueTask: Identifiable, Codable, Sendable, Equatable {
         self.title = title
         self.notes = notes
         self.estimatedDuration = estimatedDuration
+        self.difficulty = difficulty
+        self.plannedStartAt = plannedStartAt
         self.createdAt = createdAt
         self.scheduledDate = scheduledDate
         self.queuePosition = queuePosition

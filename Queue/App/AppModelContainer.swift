@@ -5,6 +5,7 @@ enum AppModelContainer {
     static func make() -> ModelContainer {
         let schema = Schema([
             TaskEntity.self,
+            XPTransactionEntity.self,
             UserPreferencesEntity.self
         ])
         let configuration = ModelConfiguration(
