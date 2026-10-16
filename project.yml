@@ -1,0 +1,75 @@
+name: Queue
+options:
+  bundleIdPrefix: com.queueapp
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    TARGETED_DEVICE_FAMILY: "1"
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: "0.1.0"
+packages:
+  QueueCore:
+    path: .
+targets:
+  Queue:
+    type: application
+    platform: iOS
+    sources:
+      - path: Queue
+    resources:
+      - path: Queue/Resources/Assets.xcassets
+    dependencies:
+      - package: QueueCore
+        product: QueueCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.queueapp.Queue
+        INFOPLIST_FILE: Queue/Resources/Info.plist
+        GENERATE_INFOPLIST_FILE: false
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGN_STYLE: Automatic
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: false
+    info:
+      path: Queue/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Queue
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        NSCalendarsFullAccessUsageDescription: Queue shows your meetings so it can suggest tasks that fit in open gaps. Events are read only and stay on your device.
+        NSCalendarsUsageDescription: Queue shows your meetings so it can suggest tasks that fit in open gaps. Events are read only and stay on your device.
+  QueueTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: QueueTests
+    dependencies:
+      - target: Queue
+      - package: QueueCore
+        product: QueueCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.queueapp.QueueTests
+        GENERATE_INFOPLIST_FILE: true
+schemes:
+  Queue:
+    build:
+      targets:
+        Queue: all
+        QueueTests: [test]
+    test:
+      targets:
+        - QueueTests
+    run:
+      config: Debug
