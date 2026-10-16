@@ -49,6 +49,21 @@ Celebrations are **skippable**. Never block navigation. With Reduce Motion: cros
 1. SwiftUI for layout, XP, progress  
 2. `CompanionAnimationView` → Rive if configured, else SwiftUI vector, else static  
 3. Pause companion activity when scene phase ≠ active  
+4. `QueueMotion` tokens + soft haptics (`QueueHaptics`) on focus transitions  
+5. `FocusCountdownRing` — remaining fraction from session timestamps  
+
+### Native companion detail (current)
+
+| State | Extra motion |
+| --- | --- |
+| preparing | Soft settle bob + screen warm-up |
+| working | Typing hands, laptop glow, lean, blink |
+| paused | Slower breath, dim screen, slight lean-back |
+| timerExpired | Soft thought bubble, narrowed eyes (never angry) |
+| celebrating | Hop + restrained orbit sparkles + smile |
+| levelUp | Stronger sparkles + floating badge |
+
+Completion: staged entrance → XP count (`motion.xpCount`) → level bar fill → optional level-up badge (`motion.levelUp`). All skippable; Reduce Motion uses cross-fade/static.
 
 ## Visual language reminders
 

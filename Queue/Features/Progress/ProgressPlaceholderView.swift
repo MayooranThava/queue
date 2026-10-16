@@ -3,6 +3,8 @@ import QueueCore
 
 struct ProgressPlaceholderView: View {
     @EnvironmentObject private var services: AppServices
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var animatedFraction: Double = 0
 
     var body: some View {
         let progress = LevelTable.progress(towardNext: services.totalXP)
@@ -18,6 +20,8 @@ struct ProgressPlaceholderView: View {
                         Text("\(services.totalXP) XP")
                             .font(QueueTypography.display(40))
                             .foregroundStyle(QueueColors.rewardDeep)
+                            .contentTransition(.numericText())
+                            .animation(QueueMotion.prefer(QueueMotion.standard, reduceMotion: reduceMotion), value: services.totalXP)
                     }
 
                     VStack(alignment: .leading, spacing: QueueSpacing.sm) {
@@ -37,7 +41,7 @@ struct ProgressPlaceholderView: View {
                                     .fill(QueueColors.secondarySurface)
                                 Capsule()
                                     .fill(QueueColors.reward)
-                                    .frame(width: proxy.size.width * progress.fraction)
+                                    .frame(width: proxy.size.width * animatedFraction)
                             }
                         }
                         .frame(height: 10)
@@ -69,6 +73,20 @@ struct ProgressPlaceholderView: View {
         .navigationTitle("Progress")
         .task {
             await services.refreshXP()
+            let fraction = LevelTable.progress(towardNext: services.totalXP).fraction
+            if reduceMotion {
+                animatedFraction = fraction
+            } else {
+                withAnimation(.easeInOut(duration: 0.8)) {
+                    animatedFraction = fraction
+                }
+            }
+        }
+        .onChange(of: services.totalXP) { _, newValue in
+            let fraction = LevelTable.progress(towardNext: newValue).fraction
+            withAnimation(QueueMotion.prefer(.easeInOut(duration: 0.6), reduceMotion: reduceMotion)) {
+                animatedFraction = fraction
+            }
         }
     }
 }
