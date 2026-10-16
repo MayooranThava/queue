@@ -309,7 +309,7 @@ def main() -> None:
         "MARKETING_VERSION": "0.1.0",
         "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_ID,
         "PRODUCT_NAME": '"$(TARGET_NAME)"',
-        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "SUPPORTED_PLATFORMS": '"iphoneos iphonesimulator"',
         "SUPPORTS_MACCATALYST": "NO",
         "SWIFT_EMIT_LOC_STRINGS": "YES",
         "TARGETED_DEVICE_FAMILY": '"1"',
