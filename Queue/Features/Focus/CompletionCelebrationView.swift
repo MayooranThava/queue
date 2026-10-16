@@ -1,7 +1,7 @@
 import SwiftUI
 import QueueCore
 
-/// Skippable completion celebration — XP count-up, companion reaction, next cue.
+/// Skippable completion celebration — XP count-up, companion reaction, level fill.
 struct CompletionCelebrationView: View {
     let outcome: FocusCompletionOutcome
     var onContinue: () -> Void
@@ -10,8 +10,14 @@ struct CompletionCelebrationView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var displayedXP: Int = 0
     @State private var showBreakdown = false
+    @State private var appeared = false
+    @State private var levelFill: Double = 0
+    @State private var showLevelUpBadge = false
 
     private var levelUp: Bool { !outcome.award.levelsCrossed.isEmpty }
+    private var progress: (current: LevelDefinition, next: LevelDefinition?, fraction: Double) {
+        LevelTable.progress(towardNext: outcome.award.totalXP)
+    }
 
     var body: some View {
         VStack(spacing: QueueSpacing.lg) {
@@ -22,18 +28,23 @@ struct CompletionCelebrationView: View {
                 reduceMotion: reduceMotion
             )
             .frame(height: 150)
+            .scaleEffect(appeared ? 1 : 0.92)
+            .opacity(appeared ? 1 : 0)
 
             Text("Nice work")
                 .font(QueueTypography.title(30))
                 .foregroundStyle(QueueColors.ivory)
+                .opacity(appeared ? 1 : 0)
+                .offset(y: appeared ? 0 : 8)
 
             Text(outcome.task.title)
                 .font(QueueTypography.body())
                 .foregroundStyle(QueueColors.ivory.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, QueueSpacing.xl)
+                .opacity(appeared ? 1 : 0)
 
-            VStack(spacing: QueueSpacing.xs) {
+            VStack(spacing: QueueSpacing.sm) {
                 Text("+\(displayedXP) XP")
                     .font(QueueTypography.display(44))
                     .foregroundStyle(QueueColors.reward)
@@ -46,14 +57,24 @@ struct CompletionCelebrationView: View {
                         .foregroundStyle(QueueColors.ivory.opacity(0.65))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, QueueSpacing.xl)
-                        .transition(.opacity)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
 
-                if levelUp, let crossed = outcome.award.levelsCrossed.last {
+                levelBar
+                    .padding(.horizontal, QueueSpacing.xl)
+                    .padding(.top, QueueSpacing.xs)
+
+                if showLevelUpBadge, let crossed = outcome.award.levelsCrossed.last {
                     Text("Level up — \(crossed.name)")
                         .font(QueueTypography.headline(17))
                         .foregroundStyle(QueueColors.sage)
-                        .padding(.top, QueueSpacing.xs)
+                        .padding(.horizontal, QueueSpacing.md)
+                        .padding(.vertical, QueueSpacing.xs)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(QueueColors.reward.opacity(0.18))
+                        )
+                        .transition(.scale.combined(with: .opacity))
                 }
             }
 
@@ -69,8 +90,37 @@ struct CompletionCelebrationView: View {
             }
             .padding(.horizontal, QueueSpacing.xl)
             .padding(.bottom, QueueSpacing.lg)
+            .opacity(appeared ? 1 : 0)
         }
-        .onAppear { animateXP() }
+        .onAppear { runEntrance() }
+    }
+
+    private var levelBar: some View {
+        VStack(alignment: .leading, spacing: QueueSpacing.xs) {
+            HStack {
+                Text(progress.current.name)
+                    .font(QueueTypography.caption())
+                    .foregroundStyle(QueueColors.ivory.opacity(0.55))
+                Spacer()
+                if let next = progress.next {
+                    Text(next.name)
+                        .font(QueueTypography.caption())
+                        .foregroundStyle(QueueColors.ivory.opacity(0.55))
+                }
+            }
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(QueueColors.ivory.opacity(0.12))
+                    Capsule()
+                        .fill(QueueColors.reward)
+                        .frame(width: proxy.size.width * levelFill)
+                }
+            }
+            .frame(height: 8)
+            .accessibilityLabel("Level progress")
+            .accessibilityValue("\(Int(levelFill * 100)) percent")
+        }
     }
 
     private var breakdownCaption: String {
@@ -88,25 +138,63 @@ struct CompletionCelebrationView: View {
         return parts.joined(separator: " · ")
     }
 
+    private func runEntrance() {
+        QueueHaptics.success(reduceMotion: reduceMotion)
+
+        withAnimation(QueueMotion.prefer(QueueMotion.celebration, reduceMotion: reduceMotion)) {
+            appeared = true
+        }
+
+        animateXP()
+        animateLevelFill()
+    }
+
     private func animateXP() {
         let target = outcome.award.awardedXP
         guard !reduceMotion, target > 0 else {
             displayedXP = target
             showBreakdown = true
+            revealLevelUpIfNeeded()
             return
         }
-        let steps = min(target, 24)
-        let stepValue = max(1, target / steps)
+
+        let duration = QueueMotion.xpCountDuration
+        let steps = 28
+        let stepValue = max(1, Int(ceil(Double(target) / Double(steps))))
         var current = 0
-        Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { timer in
+        let interval = duration / Double(steps)
+
+        Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { timer in
             current = min(target, current + stepValue)
-            displayedXP = current
+            withAnimation(.easeOut(duration: 0.05)) {
+                displayedXP = current
+            }
             if current >= target {
                 timer.invalidate()
-                withAnimation(.easeOut(duration: 0.25)) {
+                withAnimation(QueueMotion.standard) {
                     showBreakdown = true
                 }
+                revealLevelUpIfNeeded()
             }
+        }
+    }
+
+    private func animateLevelFill() {
+        let previous = LevelTable.progress(towardNext: outcome.award.previousXP).fraction
+        let next = progress.fraction
+        levelFill = reduceMotion ? next : previous
+        withAnimation(QueueMotion.prefer(.easeInOut(duration: 0.9), reduceMotion: reduceMotion)) {
+            levelFill = next
+        }
+    }
+
+    private func revealLevelUpIfNeeded() {
+        guard levelUp else { return }
+        if !reduceMotion {
+            QueueHaptics.levelUp()
+        }
+        withAnimation(QueueMotion.prefer(QueueMotion.celebration, reduceMotion: reduceMotion)) {
+            showLevelUpBadge = true
         }
     }
 }

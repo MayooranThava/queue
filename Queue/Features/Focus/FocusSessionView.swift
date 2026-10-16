@@ -15,6 +15,7 @@ struct FocusSessionView: View {
     @State private var showExitConfirm = false
     @State private var completionOutcome: FocusCompletionOutcome?
     @State private var didBootstrap = false
+    @State private var contentAppeared = false
 
     var body: some View {
         ZStack {
@@ -26,9 +27,11 @@ struct FocusSessionView: View {
                     onContinue: { finishAfterCelebration(outcome: completionOutcome) },
                     onSkip: { finishAfterCelebration(outcome: completionOutcome) }
                 )
-                .transition(.opacity)
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else {
                 focusContent
+                    .opacity(contentAppeared ? 1 : 0)
+                    .offset(y: contentAppeared ? 0 : 12)
             }
         }
         .preferredColorScheme(.dark)
@@ -82,25 +85,26 @@ struct FocusSessionView: View {
 
             TimelineView(.periodic(from: .now, by: reduceMotion ? 1 : 0.25)) { context in
                 let remaining = displayedRemaining(at: context.date)
-                VStack(spacing: QueueSpacing.sm) {
-                    Text(timeLabel(remaining))
-                        .font(QueueTypography.monoTimer(64))
-                        .foregroundStyle(QueueColors.ivory)
-                        .contentTransition(.numericText())
-                        .accessibilityLabel("Time remaining \(spokenTime(remaining))")
+                let progress = ringProgress(at: context.date)
+                VStack(spacing: QueueSpacing.md) {
+                    ZStack {
+                        FocusCountdownRing(
+                            progress: progress,
+                            isExpired: session?.state == .expired,
+                            isPaused: session?.state == .paused,
+                            reduceMotion: reduceMotion
+                        )
+                        .frame(width: 220, height: 220)
 
-                    if let session, session.state == .expired {
-                        Text("Time’s up — finish when you’re ready")
-                            .font(QueueTypography.caption())
-                            .foregroundStyle(QueueColors.reward)
-                    } else if session?.state == .paused {
-                        Text("Paused")
-                            .font(QueueTypography.caption())
-                            .foregroundStyle(QueueColors.ivory.opacity(0.65))
-                    } else {
-                        Text(task.difficulty.displayName + " · " + durationLabel(task.estimatedDuration))
-                            .font(QueueTypography.caption())
-                            .foregroundStyle(QueueColors.ivory.opacity(0.55))
+                        VStack(spacing: QueueSpacing.xs) {
+                            Text(timeLabel(remaining))
+                                .font(QueueTypography.monoTimer(56))
+                                .foregroundStyle(QueueColors.ivory)
+                                .contentTransition(.numericText())
+                                .accessibilityLabel("Time remaining \(spokenTime(remaining))")
+
+                            statusCaption
+                        }
                     }
                 }
                 .onChange(of: remaining) { _, newValue in
@@ -111,14 +115,32 @@ struct FocusSessionView: View {
             }
 
             CompanionAnimationView(state: companionState, reduceMotion: reduceMotion)
-                .frame(height: 168)
-                .accessibilityHidden(false)
+                .frame(height: 150)
+                .animation(QueueMotion.prefer(QueueMotion.standard, reduceMotion: reduceMotion), value: companionState)
 
             Spacer(minLength: QueueSpacing.sm)
 
             controls
                 .padding(.horizontal, QueueSpacing.xl)
                 .padding(.bottom, QueueSpacing.lg)
+        }
+    }
+
+    @ViewBuilder
+    private var statusCaption: some View {
+        if let session, session.state == .expired {
+            Text("Time’s up — finish when you’re ready")
+                .font(QueueTypography.caption())
+                .foregroundStyle(QueueColors.reward)
+                .transition(.opacity)
+        } else if session?.state == .paused {
+            Text("Paused")
+                .font(QueueTypography.caption())
+                .foregroundStyle(QueueColors.ivory.opacity(0.65))
+        } else {
+            Text(task.difficulty.displayName + " · " + durationLabel(task.estimatedDuration))
+                .font(QueueTypography.caption())
+                .foregroundStyle(QueueColors.ivory.opacity(0.55))
         }
     }
 
@@ -160,14 +182,22 @@ struct FocusSessionView: View {
         guard !didBootstrap else { return }
         didBootstrap = true
         companionState = .preparing
+        withAnimation(QueueMotion.prefer(QueueMotion.standard, reduceMotion: reduceMotion)) {
+            contentAppeared = true
+        }
         do {
             let started = try await services.taskRepository?.beginFocus(
                 taskID: task.id,
                 plannedDuration: task.estimatedDuration
             )
             session = started
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) {
+            // Brief preparing beat, then settle into working.
+            try? await Task.sleep(nanoseconds: reduceMotion ? 0 : 280_000_000)
+            withAnimation(QueueMotion.prefer(QueueMotion.standard, reduceMotion: reduceMotion)) {
                 companionState = visualState(for: started?.state)
+            }
+            if started?.state == .running {
+                QueueHaptics.softTap(reduceMotion: reduceMotion)
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -183,7 +213,10 @@ struct FocusSessionView: View {
     private func pause() async {
         do {
             session = try await services.taskRepository?.pauseFocus(taskID: task.id)
-            companionState = .paused
+            withAnimation(QueueMotion.prefer(QueueMotion.quick, reduceMotion: reduceMotion)) {
+                companionState = .paused
+            }
+            QueueHaptics.softTap(reduceMotion: reduceMotion)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -192,7 +225,10 @@ struct FocusSessionView: View {
     private func resume() async {
         do {
             session = try await services.taskRepository?.resumeFocus(taskID: task.id)
-            companionState = .working
+            withAnimation(QueueMotion.prefer(QueueMotion.standard, reduceMotion: reduceMotion)) {
+                companionState = .working
+            }
+            QueueHaptics.softTap(reduceMotion: reduceMotion)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -201,9 +237,12 @@ struct FocusSessionView: View {
     private func extend() async {
         do {
             session = try await services.taskRepository?.extendFocus(by: 5 * 60)
-            if session?.state == .running {
-                companionState = .working
+            withAnimation(QueueMotion.prefer(QueueMotion.quick, reduceMotion: reduceMotion)) {
+                if session?.state == .running {
+                    companionState = .working
+                }
             }
+            QueueHaptics.softTap(reduceMotion: reduceMotion)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -214,7 +253,9 @@ struct FocusSessionView: View {
             let snapped = try await services.taskRepository?.evaluateFocusExpiry()
             session = snapped
             if snapped?.state == .expired {
-                companionState = .timerExpired
+                withAnimation(QueueMotion.prefer(QueueMotion.standard, reduceMotion: reduceMotion)) {
+                    companionState = .timerExpired
+                }
             }
         } catch {
             // Soft-fail; TimelineView will keep showing clamped remaining time.
@@ -237,7 +278,7 @@ struct FocusSessionView: View {
                 return
             }
             await services.refreshXP()
-            withAnimation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.86)) {
+            withAnimation(QueueMotion.prefer(QueueMotion.celebration, reduceMotion: reduceMotion)) {
                 companionState = outcome.award.levelsCrossed.isEmpty ? .celebrating : .levelUp
                 completionOutcome = outcome
             }
@@ -251,6 +292,13 @@ struct FocusSessionView: View {
     private func displayedRemaining(at now: Date) -> TimeInterval {
         guard let session else { return task.estimatedDuration }
         return session.remaining(at: now)
+    }
+
+    private func ringProgress(at now: Date) -> Double {
+        guard let session else { return 1 }
+        let total = max(1, session.totalPlanned)
+        let remaining = session.remaining(at: now)
+        return remaining / total
     }
 
     private func timeLabel(_ interval: TimeInterval) -> String {
