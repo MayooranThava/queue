@@ -14,7 +14,9 @@ Queue is a premium iOS productivity app: a FIFO task queue, a reliable focus tim
 | Domain FIFO / timer / XP / Smart Gaps engines | Implemented in `QueueCore` |
 | Queue UI + add/edit/reorder + persistence | Done |
 | Focus timer UI (start → countdown → complete) | Done (notifications polish next) |
-| Companion working + celebration + Progress XP | Done (streaks next) |
+| Live countdown on Queue “Now” card | Done |
+| Home Screen / Lock Screen widgets + Live Activity | Done (`QueueWidgets`; needs App Group in Developer portal) |
+| Companion working + celebration + Progress XP | Done (storyboard desk/typing motion) |
 | Optional Up-next start-time toggle | Done |
 | Apple Calendar + Smart Gaps UI | Phase 4 |
 | Outlook (MSAL/Graph) | Phase 5 |

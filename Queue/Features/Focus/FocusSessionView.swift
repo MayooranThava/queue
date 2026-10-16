@@ -191,6 +191,7 @@ struct FocusSessionView: View {
                 plannedDuration: task.estimatedDuration
             )
             session = started
+            await services.refreshFocusSnapshot()
             // Brief preparing beat, then settle into working.
             try? await Task.sleep(nanoseconds: reduceMotion ? 0 : 280_000_000)
             withAnimation(QueueMotion.prefer(QueueMotion.standard, reduceMotion: reduceMotion)) {
@@ -213,6 +214,7 @@ struct FocusSessionView: View {
     private func pause() async {
         do {
             session = try await services.taskRepository?.pauseFocus(taskID: task.id)
+            await services.refreshFocusSnapshot()
             withAnimation(QueueMotion.prefer(QueueMotion.quick, reduceMotion: reduceMotion)) {
                 companionState = .paused
             }
@@ -225,6 +227,7 @@ struct FocusSessionView: View {
     private func resume() async {
         do {
             session = try await services.taskRepository?.resumeFocus(taskID: task.id)
+            await services.refreshFocusSnapshot()
             withAnimation(QueueMotion.prefer(QueueMotion.standard, reduceMotion: reduceMotion)) {
                 companionState = .working
             }
@@ -237,6 +240,7 @@ struct FocusSessionView: View {
     private func extend() async {
         do {
             session = try await services.taskRepository?.extendFocus(by: 5 * 60)
+            await services.refreshFocusSnapshot()
             withAnimation(QueueMotion.prefer(QueueMotion.quick, reduceMotion: reduceMotion)) {
                 if session?.state == .running {
                     companionState = .working
@@ -252,6 +256,7 @@ struct FocusSessionView: View {
         do {
             let snapped = try await services.taskRepository?.evaluateFocusExpiry()
             session = snapped
+            await services.refreshFocusSnapshot()
             if snapped?.state == .expired {
                 withAnimation(QueueMotion.prefer(QueueMotion.standard, reduceMotion: reduceMotion)) {
                     companionState = .timerExpired
@@ -278,6 +283,7 @@ struct FocusSessionView: View {
                 return
             }
             await services.refreshXP()
+            await services.refreshFocusSnapshot()
             withAnimation(QueueMotion.prefer(QueueMotion.celebration, reduceMotion: reduceMotion)) {
                 companionState = outcome.award.levelsCrossed.isEmpty ? .celebrating : .levelUp
                 completionOutcome = outcome

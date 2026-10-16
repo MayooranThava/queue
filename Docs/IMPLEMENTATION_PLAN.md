@@ -58,7 +58,12 @@
 - `FocusSessionEntity` persists timestamps; bootstrap restores after kill/relaunch
 - Completion undo banner + `RewardEngine.revoke` so XP cannot be double-farmed
 
-**Not verified here:** Full iOS app compile/simulator (no Xcode on this Linux environment). Local notifications remain a Phase 2 follow-up.
+**Timer surfaces + companion polish:**
+- Live countdown on Queue “Now” card (not Focus-only)
+- Home Screen / Lock Screen WidgetKit extension + optional Live Activity via App Group snapshot
+- Companion redraw: desk/laptop/lamp/typing aligned to storyboard states
+
+**Not verified here:** Full iOS app compile/simulator (no Xcode on this Linux environment). Local notifications remain a Phase 2 follow-up. Enable App Group `group.com.queueapp.Queueup` for the app + widget targets in the Apple Developer portal before device widget testing.
 
 ### Phase 4 — Calendar + Smart Gaps
 

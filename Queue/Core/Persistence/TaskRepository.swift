@@ -308,6 +308,7 @@ final class TaskRepository {
             context.insert(FocusSessionEntity(session: session))
         }
         try context.save()
+        syncWidgetSnapshot(session)
     }
 
     private func clearPersistedSession() throws {
@@ -316,6 +317,54 @@ final class TaskRepository {
             context.delete(entity)
         }
         try context.save()
+        FocusActivityStore.clear()
+    }
+
+    /// Publishes timestamps to the App Group so Queue chrome, widgets, and Live Activities stay in sync.
+    private func syncWidgetSnapshot(_ session: FocusSession) {
+        guard session.state == .running || session.state == .paused || session.state == .expired else {
+            FocusActivityStore.clear()
+            return
+        }
+        let taskID = session.taskID
+        let descriptor = FetchDescriptor<TaskEntity>(
+            predicate: #Predicate { $0.id == taskID }
+        )
+        guard let entity = try? context.fetch(descriptor).first else {
+            FocusActivityStore.clear()
+            return
+        }
+        let task = entity.asDomain()
+        FocusActivityStore.save(
+            FocusWidgetSnapshot(
+                taskID: task.id,
+                taskTitle: task.title,
+                difficultyDisplayName: task.difficulty.displayName,
+                estimatedDuration: task.estimatedDuration,
+                session: session
+            )
+        )
+    }
+
+    func currentFocusSnapshot() async -> FocusWidgetSnapshot? {
+        guard let session = await timerEngine.snapshotted(),
+              session.state == .running || session.state == .paused || session.state == .expired,
+              let task = await queueService.task(id: session.taskID)
+        else {
+            if let loaded = FocusActivityStore.load(), loaded.isActivelyTiming {
+                return loaded
+            }
+            return nil
+        }
+        let snapshot = FocusWidgetSnapshot(
+            taskID: task.id,
+            taskTitle: task.title,
+            difficultyDisplayName: task.difficulty.displayName,
+            estimatedDuration: task.estimatedDuration,
+            session: session
+        )
+        FocusActivityStore.save(snapshot)
+        return snapshot
     }
 
     private func resolveSourceEventID(for snapshot: QueueTask) throws -> UUID? {

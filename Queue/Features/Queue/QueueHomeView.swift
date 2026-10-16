@@ -4,6 +4,7 @@ import QueueCore
 
 struct QueueHomeView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var services: AppServices
     @Query(sort: [
         SortDescriptor(\TaskEntity.queuePosition),
@@ -69,7 +70,9 @@ struct QueueHomeView: View {
                 await updateTask(task, draft: draft)
             }
         }
-        .fullScreenCover(item: $focusTask) { task in
+        .fullScreenCover(item: $focusTask, onDismiss: {
+            Task { await services.refreshFocusSnapshot() }
+        }) { task in
             FocusSessionView(task: task)
         }
         .alert("Something went wrong", isPresented: Binding(
@@ -82,6 +85,11 @@ struct QueueHomeView: View {
         }
         .task {
             await services.configure(modelContext: modelContext)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await services.refreshFocusSnapshot() }
+            }
         }
         .safeAreaInset(edge: .bottom) {
             if let undoTitle = services.undoBannerTitle {
@@ -120,7 +128,7 @@ struct QueueHomeView: View {
                 Section {
                     ActiveTaskHero(
                         task: headTask,
-                        isAlreadyFocusing: headTask.status == .active || headTask.status == .paused || headTask.status == .expired,
+                        focusSnapshot: matchingSnapshot(for: headTask),
                         onEdit: { editingTask = headTask },
                         onFocus: { focusTask = headTask }
                     )
@@ -184,6 +192,14 @@ struct QueueHomeView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .environment(\.editMode, .constant(.active))
+    }
+
+    private func matchingSnapshot(for task: QueueTask) -> FocusWidgetSnapshot? {
+        guard let snapshot = services.focusSnapshot,
+              snapshot.taskID == task.id,
+              snapshot.isActivelyTiming
+        else { return nil }
+        return snapshot
     }
 
     private func undoBanner(title: String) -> some View {
@@ -254,6 +270,7 @@ struct QueueHomeView: View {
             _ = try await services.taskRepository?.undoLastCompletion()
             services.clearUndoBanner()
             await services.refreshXP()
+            await services.refreshFocusSnapshot()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -262,9 +279,30 @@ struct QueueHomeView: View {
 
 private struct ActiveTaskHero: View {
     let task: QueueTask
-    var isAlreadyFocusing: Bool = false
+    let focusSnapshot: FocusWidgetSnapshot?
     var onEdit: () -> Void
     var onFocus: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var isAlreadyFocusing: Bool {
+        focusSnapshot != nil
+            || task.status == .active
+            || task.status == .paused
+            || task.status == .expired
+    }
+
+    private var companionState: CompanionVisualState {
+        guard let focusSnapshot else {
+            return isAlreadyFocusing ? .working : .idle
+        }
+        switch focusSnapshot.session.state {
+        case .running: return .working
+        case .paused: return .paused
+        case .expired: return .timerExpired
+        default: return .working
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: QueueSpacing.md) {
@@ -274,17 +312,19 @@ private struct ActiveTaskHero: View {
                         .font(QueueTypography.title(30))
                         .foregroundStyle(QueueColors.primaryText)
                         .accessibilityAddTraits(.isHeader)
-                    Text("\(durationLabel(task.estimatedDuration)) · \(task.difficulty.displayName)")
-                        .font(QueueTypography.body())
-                        .foregroundStyle(QueueColors.secondaryText)
+
+                    if focusSnapshot == nil {
+                        Text("\(durationLabel(task.estimatedDuration)) · \(task.difficulty.displayName)")
+                            .font(QueueTypography.body())
+                            .foregroundStyle(QueueColors.secondaryText)
+                    }
                 }
-                Spacer()
-                CompanionAnimationView(
-                    state: isAlreadyFocusing ? .working : .idle,
-                    reduceMotion: false
-                )
-                .frame(width: 72, height: 72)
-                .accessibilityHidden(true)
+                Spacer(minLength: QueueSpacing.sm)
+                companionBadge
+            }
+
+            if let focusSnapshot {
+                liveTimer(snapshot: focusSnapshot)
             }
 
             if let notes = task.notes, !notes.isEmpty {
@@ -312,6 +352,61 @@ private struct ActiveTaskHero: View {
             RoundedRectangle(cornerRadius: QueueSpacing.cornerSoft, style: .continuous)
                 .fill(QueueColors.secondarySurface)
         )
+    }
+
+    private var companionBadge: some View {
+        ZStack {
+            if let focusSnapshot {
+                TimelineView(.periodic(from: .now, by: reduceMotion ? 1 : 0.5)) { context in
+                    FocusCountdownRing(
+                        progress: focusSnapshot.progress(at: context.date),
+                        isExpired: focusSnapshot.session.state == .expired,
+                        isPaused: focusSnapshot.session.state == .paused,
+                        reduceMotion: reduceMotion
+                    )
+                    .frame(width: 76, height: 76)
+                }
+            }
+            CompanionAnimationView(
+                state: companionState,
+                reduceMotion: false,
+                compact: true
+            )
+            .frame(width: 64, height: 64)
+        }
+        .frame(width: 80, height: 80)
+        .accessibilityHidden(true)
+    }
+
+    private func liveTimer(snapshot: FocusWidgetSnapshot) -> some View {
+        TimelineView(.periodic(from: .now, by: reduceMotion ? 1 : 0.25)) { context in
+            let remaining = snapshot.remaining(at: context.date)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(FocusTimerFormatting.clock(remaining))
+                    .font(QueueTypography.monoTimer(36))
+                    .foregroundStyle(QueueColors.primaryText)
+                    .contentTransition(.numericText())
+                    .accessibilityLabel("Time remaining \(FocusTimerFormatting.spoken(remaining))")
+
+                Text(statusCaption(for: snapshot))
+                    .font(QueueTypography.caption())
+                    .foregroundStyle(QueueColors.secondaryText)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func statusCaption(for snapshot: FocusWidgetSnapshot) -> String {
+        switch snapshot.session.state {
+        case .paused:
+            return "Paused · \(snapshot.difficultyDisplayName)"
+        case .expired:
+            return "Time’s up · finish when you’re ready"
+        case .running:
+            return "Focusing · \(snapshot.difficultyDisplayName) · \(durationLabel(snapshot.estimatedDuration))"
+        default:
+            return "\(durationLabel(task.estimatedDuration)) · \(task.difficulty.displayName)"
+        }
     }
 
     private func durationLabel(_ interval: TimeInterval) -> String {

@@ -1,6 +1,6 @@
 import Foundation
 
-public enum FocusTimerState: String, Codable, Sendable, Equatable {
+public enum FocusTimerState: String, Codable, Sendable, Equatable, Hashable {
     case idle
     case running
     case paused
@@ -8,7 +8,7 @@ public enum FocusTimerState: String, Codable, Sendable, Equatable {
     case completed
 }
 
-public struct FocusTimerExtension: Codable, Sendable, Equatable, Identifiable {
+public struct FocusTimerExtension: Codable, Sendable, Equatable, Hashable, Identifiable {
     public let id: UUID
     public let duration: TimeInterval
     public let createdAt: Date
@@ -21,7 +21,7 @@ public struct FocusTimerExtension: Codable, Sendable, Equatable, Identifiable {
 }
 
 /// Authoritative focus session. Remaining time is always derived from timestamps.
-public struct FocusSession: Codable, Sendable, Equatable, Identifiable {
+public struct FocusSession: Codable, Sendable, Equatable, Hashable, Identifiable {
     public let id: UUID
     public let taskID: UUID
     public var sessionStart: Date
