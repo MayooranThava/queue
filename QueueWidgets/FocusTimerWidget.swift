@@ -20,13 +20,17 @@ struct FocusTimerProvider: TimelineProvider {
         }
 
         var entries: [FocusTimerEntry] = []
-        // Timestamp-backed entries every 15s so the Home Screen clock stays honest without a tick loop.
-        for offset in stride(from: 0, through: 15 * 60, by: 15) {
-            let date = now.addingTimeInterval(TimeInterval(offset))
+        // Dense near expiry so the last minute feels live; coarser earlier to save battery.
+        var offset: TimeInterval = 0
+        let horizon: TimeInterval = 15 * 60
+        while offset <= horizon {
+            let date = now.addingTimeInterval(offset)
             entries.append(FocusTimerEntry(date: date, snapshot: snapshot))
-            if snapshot.session.remaining(at: date) <= 0 { break }
+            let remaining = snapshot.session.remaining(at: date)
+            if remaining <= 0 { break }
+            offset += remaining <= 120 ? 5 : 15
         }
-        let refresh = entries.last?.date.addingTimeInterval(15) ?? now.addingTimeInterval(60)
+        let refresh = entries.last?.date.addingTimeInterval(5) ?? now.addingTimeInterval(60)
         completion(Timeline(entries: entries, policy: .after(refresh)))
     }
 }
@@ -51,6 +55,7 @@ struct FocusTimerWidgetView: View {
         .containerBackground(for: .widget) {
             QueueWidgetColors.charcoal
         }
+        .widgetURL(entry.snapshot?.isActivelyTiming == true ? QueueDeepLink.focus : QueueDeepLink.queue)
     }
 
     private func activeView(_ snapshot: FocusWidgetSnapshot) -> some View {

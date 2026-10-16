@@ -77,6 +77,7 @@ struct FocusLiveActivityWidget: Widget {
         .padding(16)
         .activityBackgroundTint(QueueWidgetColors.charcoal)
         .activitySystemActionForegroundColor(QueueWidgetColors.ivory)
+        .widgetURL(QueueDeepLink.focus)
     }
 
     private func statusCaption(_ state: FocusActivityAttributes.ContentState) -> String {

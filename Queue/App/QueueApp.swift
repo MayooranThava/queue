@@ -11,6 +11,11 @@ struct QueueApp: App {
             RootView()
                 .environment(\.locale, .current)
                 .environmentObject(services)
+                .onOpenURL { url in
+                    if QueueDeepLink.matchesFocus(url) || QueueDeepLink.matchesQueue(url) {
+                        services.pendingOpenFocus = true
+                    }
+                }
         }
         .modelContainer(container)
     }
