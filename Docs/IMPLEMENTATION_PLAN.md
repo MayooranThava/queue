@@ -106,7 +106,7 @@ Docs/*
 
 ### Open questions for product owner
 
-1. Final bundle ID and Apple Developer Team ID?
+1. Apple Developer Team ID? (Bundle ID confirmed: `com.queueapp.Queueup`)
 2. Azure AD app registration for Outlook (when Phase 5 starts)?
 3. Confirm Pro as non-consumable vs subscription before StoreKit work?
 4. Can design export PNGs into `DesignReferences/` for parity checks?

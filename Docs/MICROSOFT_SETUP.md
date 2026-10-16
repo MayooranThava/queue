@@ -12,7 +12,7 @@ Queue uses **MSAL** (public client) + **Microsoft Graph** `calendarView` with au
 2. Name: `Queue iOS`
 3. Supported account types: personal Microsoft accounts + work/school (as desired)
 4. Redirect URI (public client / mobile):
-   - `msauth.com.queueapp.Queue://auth` (replace with final bundle ID form)
+   - `msauth.com.queueapp.Queueup://auth`
 5. Authentication → **Allow public client flows**: Yes
 6. API permissions (delegated only):
    - `Calendars.Read`
