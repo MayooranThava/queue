@@ -22,16 +22,22 @@ targets:
     platform: iOS
     sources:
       - path: Queue
+      - path: Shared
     resources:
       - path: Queue/Resources/Assets.xcassets
+    entitlements:
+      path: Queue/Resources/Queue.entitlements
     dependencies:
       - package: QueueCore
         product: QueueCore
+      - target: QueueWidgets
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.queueapp.Queueup
         INFOPLIST_FILE: Queue/Resources/Info.plist
         GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_ENTITLEMENTS: Queue/Resources/Queue.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         DEVELOPMENT_TEAM: ""
         CODE_SIGN_STYLE: Automatic
@@ -43,12 +49,42 @@ targets:
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}
+        NSSupportsLiveActivities: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         NSCalendarsFullAccessUsageDescription: Queue shows your meetings so it can suggest tasks that fit in open gaps. Events are read only and stay on your device.
         NSCalendarsUsageDescription: Queue shows your meetings so it can suggest tasks that fit in open gaps. Events are read only and stay on your device.
+  QueueWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: QueueWidgets
+      - path: Shared
+    entitlements:
+      path: QueueWidgets/QueueWidgets.entitlements
+    dependencies:
+      - package: QueueCore
+        product: QueueCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.queueapp.Queueup.widgets
+        INFOPLIST_FILE: QueueWidgets/Info.plist
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_ENTITLEMENTS: QueueWidgets/QueueWidgets.entitlements
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGN_STYLE: Automatic
+        SKIP_INSTALL: true
+    info:
+      path: QueueWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Queue
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
   QueueTests:
     type: bundle.unit-test
     platform: iOS
@@ -67,6 +103,7 @@ schemes:
     build:
       targets:
         Queue: all
+        QueueWidgets: all
         QueueTests: [test]
     test:
       targets:

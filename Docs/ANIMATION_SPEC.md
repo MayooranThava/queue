@@ -54,16 +54,28 @@ Celebrations are **skippable**. Never block navigation. With Reduce Motion: cros
 
 ### Native companion detail (current)
 
+Storyboard-aligned desk scene: warm desk, laptop with leaf mark, plant, props per state.
+Draw order is body → laptop → arms/props so the companion reads as *working*, not a blinking blob.
+
 | State | Extra motion |
 | --- | --- |
-| preparing | Soft settle bob + screen warm-up |
-| working | Typing hands, laptop glow, lean, blink |
-| paused | Slower breath, dim screen, slight lean-back |
-| timerExpired | Soft thought bubble, narrowed eyes (never angry) |
-| celebrating | Hop + restrained orbit sparkles + smile |
-| levelUp | Stronger sparkles + floating badge |
+| idle | Soft breath, `...` bubble, dim laptop |
+| preparing | Mug + steam, settle bob, screen warm-up |
+| working | Lamp on, alternating typing hands + forearms, laptop glow, lean, blink; deep-focus beat with headphones + notes |
+| paused | Slumped posture, floating Z marks, dim screen |
+| timerExpired | Soft scribble thought bubble, empty hourglass (never angry) |
+| celebrating | Arms up + hop + restrained orbit sparkles + smile |
+| levelUp | Held glowing star + stronger sparkles |
+
+`CompanionAnimationView(compact: true)` keeps the same scene readable inside the Queue “Now” card.
 
 Completion: staged entrance → XP count (`motion.xpCount`) → level bar fill → optional level-up badge (`motion.levelUp`). All skippable; Reduce Motion uses cross-fade/static.
+
+### Timer visibility outside Focus
+
+- Queue “Now” card shows a live `TimelineView` countdown + mini ring while a session is running/paused/expired
+- `FocusActivityStore` (App Group) mirrors timestamps for Home Screen widgets + Live Activities
+- Widgets reload via `WidgetCenter`; Live Activity content state carries the same `FocusSession`
 
 ## Visual language reminders
 
