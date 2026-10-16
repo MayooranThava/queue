@@ -16,7 +16,6 @@ struct QueueHomeView: View {
     @State private var editingTask: QueueTask?
     @State private var focusTask: QueueTask?
     @State private var errorMessage: String?
-    @State private var undoTaskTitle: String?
 
     private var activeTasks: [QueueTask] {
         taskEntities
@@ -85,8 +84,8 @@ struct QueueHomeView: View {
             await services.configure(modelContext: modelContext)
         }
         .safeAreaInset(edge: .bottom) {
-            if let undoTaskTitle {
-                undoBanner(title: undoTaskTitle)
+            if let undoTitle = services.undoBannerTitle {
+                undoBanner(title: undoTitle)
             }
         }
     }
@@ -253,7 +252,8 @@ struct QueueHomeView: View {
     private func undoCompletion() async {
         do {
             _ = try await services.taskRepository?.undoLastCompletion()
-            undoTaskTitle = nil
+            services.clearUndoBanner()
+            await services.refreshXP()
         } catch {
             errorMessage = error.localizedDescription
         }

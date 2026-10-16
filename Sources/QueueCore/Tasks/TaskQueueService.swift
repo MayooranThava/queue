@@ -30,6 +30,15 @@ public actor TaskQueueService {
         allTasks().first { $0.status == .active || $0.status == .paused || $0.status == .expired }
     }
 
+    public func task(id: UUID) -> QueueTask? {
+        tasks[id]
+    }
+
+    /// Most recently completed task snapshot (in-memory; used for undo).
+    public func lastCompleted() -> QueueTask? {
+        lastCompletedSnapshot
+    }
+
     public func createTask(
         title: String,
         notes: String? = nil,

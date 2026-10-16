@@ -5,6 +5,7 @@ import QueueCore
 struct FocusCompletionOutcome: Sendable {
     let task: QueueTask
     let award: RewardAwardResult
+    let sourceEventID: UUID
 }
 
 @MainActor
@@ -42,6 +43,8 @@ final class TaskRepository {
         let xpEntities = try context.fetch(xpDescriptor)
         let transactions = xpEntities.compactMap { $0.asDomain() }
         await rewardEngine.restore(transactions: transactions)
+
+        try await restoreFocusSessionIfNeeded()
     }
 
     func tasks() async -> [QueueTask] {
@@ -94,43 +97,96 @@ final class TaskRepository {
         }
     }
 
-    /// Starts the domain task and begins a timestamp-backed focus session immediately.
+    /// Starts or resumes focus. Safe to call when the task is already active/paused.
     func beginFocus(taskID: UUID, plannedDuration: TimeInterval) async throws -> FocusSession {
-        _ = try await queueService.start(id: taskID)
-        let task = try await requireTask(taskID)
-        try upsert(task)
-        analytics.track(.taskStarted(taskID: taskID))
+        if let live = await liveSession(for: taskID) {
+            let snapped = await timerEngine.snapshotted() ?? live
+            try persistSession(snapped)
+            return snapped
+        }
 
-        if let existing = await timerEngine.currentSession(),
-           existing.taskID == taskID,
-           existing.state == .running || existing.state == .paused {
-            return existing
+        guard let task = await queueService.task(id: taskID) else {
+            throw TaskTransitionError.taskNotFound
         }
-        // Clear a completed/expired prior session so Start is always immediate.
-        if let existing = await timerEngine.currentSession(),
-           existing.state == .completed || existing.state == .expired || existing.state == .idle {
-            await timerEngine.clear()
+
+        switch task.status {
+        case .queued:
+            _ = try await queueService.start(id: taskID)
+            let started = try await requireTask(taskID)
+            try upsert(started)
+            analytics.track(.taskStarted(taskID: taskID))
+            await clearStaleEngineSessionIfNeeded(matching: taskID)
+            let session = try await timerEngine.start(
+                taskID: taskID,
+                plannedDuration: plannedDuration
+            )
+            try persistSession(session)
+            return session
+
+        case .active, .expired:
+            // Task already focusing; recreate timer only if memory/session was lost.
+            await clearStaleEngineSessionIfNeeded(matching: taskID)
+            let session = try await timerEngine.start(
+                taskID: taskID,
+                plannedDuration: plannedDuration
+            )
+            try persistSession(session)
+            return session
+
+        case .paused:
+            await clearStaleEngineSessionIfNeeded(matching: taskID)
+            // No persisted segment to resume — start a fresh running segment.
+            _ = try await queueService.resume(id: taskID)
+            let resumedTask = try await requireTask(taskID)
+            try upsert(resumedTask)
+            let session = try await timerEngine.start(
+                taskID: taskID,
+                plannedDuration: plannedDuration
+            )
+            try persistSession(session)
+            return session
+
+        default:
+            throw TaskTransitionError.invalidTransition(from: task.status, to: .active)
         }
-        return try await timerEngine.start(taskID: taskID, plannedDuration: plannedDuration)
     }
 
     func pauseFocus(taskID: UUID) async throws -> FocusSession {
         _ = try await queueService.pause(id: taskID)
         let task = try await requireTask(taskID)
         try upsert(task)
-        return try await timerEngine.pause()
+        let session = try await timerEngine.pause()
+        try persistSession(session)
+        return session
     }
 
     func resumeFocus(taskID: UUID) async throws -> FocusSession {
         _ = try await queueService.resume(id: taskID)
         let task = try await requireTask(taskID)
         try upsert(task)
-        return try await timerEngine.resume()
+        let session = try await timerEngine.resume()
+        try persistSession(session)
+        return session
     }
 
     func extendFocus(by duration: TimeInterval) async throws -> FocusSession {
         let session = try await timerEngine.extend(by: duration)
+        try persistSession(session)
         analytics.track(.taskExtended(taskID: session.taskID))
+        return session
+    }
+
+    func evaluateFocusExpiry() async throws -> FocusSession? {
+        let session = await timerEngine.evaluateExpiry()
+        if let session {
+            try persistSession(session)
+            if session.state == .expired {
+                _ = try? await queueService.expire(id: session.taskID)
+                if let task = await queueService.task(id: session.taskID) {
+                    try upsert(task)
+                }
+            }
+        }
         return session
     }
 
@@ -157,13 +213,29 @@ final class TaskRepository {
             task = try await queueService.attachXPAward(id: taskID, awardID: first.id)
             try upsert(task)
         }
+        try persistSession(session)
         try context.save()
-        return FocusCompletionOutcome(task: task, award: award)
+        return FocusCompletionOutcome(task: task, award: award, sourceEventID: sourceEventID)
     }
 
     func undoLastCompletion() async throws -> QueueTask {
+        guard let snapshot = await queueService.lastCompleted() else {
+            throw TaskTransitionError.taskNotFound
+        }
+
+        let sourceEventID = try resolveSourceEventID(for: snapshot)
+
         let task = try await queueService.undoLastCompletion()
         try upsert(task)
+
+        if let sourceEventID {
+            _ = await rewardEngine.revoke(sourceEventID: sourceEventID)
+            try deleteXPTransactions(sourceEventID: sourceEventID)
+        }
+
+        await timerEngine.clear()
+        try clearPersistedSession()
+        try context.save()
         return task
     }
 
@@ -177,9 +249,94 @@ final class TaskRepository {
         }
     }
 
+    // MARK: - Session persistence
+
+    private func restoreFocusSessionIfNeeded() async throws {
+        let descriptor = FetchDescriptor<FocusSessionEntity>(
+            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+        )
+        guard let entity = try context.fetch(descriptor).first,
+              var session = entity.asDomain()
+        else { return }
+
+        // Drop terminal sessions left on disk.
+        if session.state == .completed || session.state == .idle {
+            try clearPersistedSession()
+            return
+        }
+
+        guard let task = await queueService.task(id: session.taskID),
+              task.status == .active || task.status == .paused || task.status == .expired
+        else {
+            try clearPersistedSession()
+            return
+        }
+
+        await timerEngine.restore(session)
+        if let snapped = await timerEngine.snapshotted() {
+            session = snapped
+            try persistSession(session)
+            if session.state == .expired, task.status != .expired {
+                _ = try? await queueService.expire(id: session.taskID)
+                if let updated = await queueService.task(id: session.taskID) {
+                    try upsert(updated)
+                }
+            }
+        }
+    }
+
+    private func liveSession(for taskID: UUID) async -> FocusSession? {
+        guard let existing = await timerEngine.currentSession(),
+              existing.taskID == taskID,
+              existing.state == .running || existing.state == .paused || existing.state == .expired
+        else { return nil }
+        return existing
+    }
+
+    private func clearStaleEngineSessionIfNeeded(matching taskID: UUID) async {
+        guard let existing = await timerEngine.currentSession() else { return }
+        if existing.taskID != taskID || existing.state == .completed || existing.state == .idle {
+            await timerEngine.clear()
+        }
+    }
+
+    private func persistSession(_ session: FocusSession) throws {
+        let descriptor = FetchDescriptor<FocusSessionEntity>()
+        if let entity = try context.fetch(descriptor).first {
+            entity.apply(session)
+        } else {
+            context.insert(FocusSessionEntity(session: session))
+        }
+        try context.save()
+    }
+
+    private func clearPersistedSession() throws {
+        let descriptor = FetchDescriptor<FocusSessionEntity>()
+        for entity in try context.fetch(descriptor) {
+            context.delete(entity)
+        }
+        try context.save()
+    }
+
+    private func resolveSourceEventID(for snapshot: QueueTask) throws -> UUID? {
+        guard let awardID = snapshot.xpAwardID else { return nil }
+        let descriptor = FetchDescriptor<XPTransactionEntity>(
+            predicate: #Predicate { $0.id == awardID }
+        )
+        return try context.fetch(descriptor).first?.sourceEventID
+    }
+
+    private func deleteXPTransactions(sourceEventID: UUID) throws {
+        let descriptor = FetchDescriptor<XPTransactionEntity>(
+            predicate: #Predicate { $0.sourceEventID == sourceEventID }
+        )
+        for entity in try context.fetch(descriptor) {
+            context.delete(entity)
+        }
+    }
+
     private func requireTask(_ id: UUID) async throws -> QueueTask {
-        let all = await queueService.allTasks()
-        guard let task = all.first(where: { $0.id == id }) else {
+        guard let task = await queueService.task(id: id) else {
             throw TaskTransitionError.taskNotFound
         }
         return task

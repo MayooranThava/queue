@@ -11,6 +11,8 @@ final class AppServices: ObservableObject {
     private(set) var taskRepository: TaskRepository?
     @Published private(set) var totalXP: Int = 0
     @Published private(set) var levelName: String = LevelTable.standard[0].name
+    @Published private(set) var undoBannerTitle: String?
+    private var undoClearTask: Task<Void, Never>?
     private var didBootstrap = false
 
     init(
@@ -52,5 +54,23 @@ final class AppServices: ObservableObject {
         let xp = await rewardEngine.totalXP()
         totalXP = xp
         levelName = LevelTable.level(forXP: xp).name
+    }
+
+    /// Brief post-completion undo affordance (skippable, auto-dismisses).
+    func offerUndo(forTaskTitle title: String, seconds: TimeInterval = 8) {
+        undoClearTask?.cancel()
+        undoBannerTitle = title
+        undoClearTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self?.undoBannerTitle = nil
+            }
+        }
+    }
+
+    func clearUndoBanner() {
+        undoClearTask?.cancel()
+        undoBannerTitle = nil
     }
 }

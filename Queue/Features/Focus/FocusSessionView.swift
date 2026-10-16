@@ -23,14 +23,8 @@ struct FocusSessionView: View {
             if let completionOutcome {
                 CompletionCelebrationView(
                     outcome: completionOutcome,
-                    onContinue: {
-                        self.completionOutcome = nil
-                        dismiss()
-                    },
-                    onSkip: {
-                        self.completionOutcome = nil
-                        dismiss()
-                    }
+                    onContinue: { finishAfterCelebration(outcome: completionOutcome) },
+                    onSkip: { finishAfterCelebration(outcome: completionOutcome) }
                 )
                 .transition(.opacity)
             } else {
@@ -173,11 +167,17 @@ struct FocusSessionView: View {
             )
             session = started
             withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) {
-                companionState = .working
+                companionState = visualState(for: started?.state)
             }
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func finishAfterCelebration(outcome: FocusCompletionOutcome) {
+        services.offerUndo(forTaskTitle: outcome.task.title)
+        completionOutcome = nil
+        dismiss()
     }
 
     private func pause() async {
@@ -210,10 +210,24 @@ struct FocusSessionView: View {
     }
 
     private func evaluateExpiry() async {
-        let snapped = await services.timerEngine.evaluateExpiry()
-        session = snapped
-        if snapped?.state == .expired {
-            companionState = .timerExpired
+        do {
+            let snapped = try await services.taskRepository?.evaluateFocusExpiry()
+            session = snapped
+            if snapped?.state == .expired {
+                companionState = .timerExpired
+            }
+        } catch {
+            // Soft-fail; TimelineView will keep showing clamped remaining time.
+        }
+    }
+
+    private func visualState(for timerState: FocusTimerState?) -> CompanionVisualState {
+        switch timerState {
+        case .running: return .working
+        case .paused: return .paused
+        case .expired: return .timerExpired
+        case .completed: return .celebrating
+        case .idle, .none: return .preparing
         }
     }
 

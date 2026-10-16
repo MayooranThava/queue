@@ -109,6 +109,33 @@ final class TaskEntity {
     }
 }
 
+/// Single active focus session blob. Timestamps are the source of truth across relaunch.
+@Model
+final class FocusSessionEntity {
+    @Attribute(.unique) var id: UUID
+    var taskID: UUID
+    var sessionData: Data
+    var updatedAt: Date
+
+    init(session: FocusSession) {
+        self.id = session.id
+        self.taskID = session.taskID
+        self.sessionData = (try? JSONEncoder().encode(session)) ?? Data()
+        self.updatedAt = Date()
+    }
+
+    func apply(_ session: FocusSession) {
+        id = session.id
+        taskID = session.taskID
+        sessionData = (try? JSONEncoder().encode(session)) ?? Data()
+        updatedAt = Date()
+    }
+
+    func asDomain() -> FocusSession? {
+        try? JSONDecoder().decode(FocusSession.self, from: sessionData)
+    }
+}
+
 @Model
 final class XPTransactionEntity {
     @Attribute(.unique) var id: UUID
