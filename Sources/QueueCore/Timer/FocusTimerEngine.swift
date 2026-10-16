@@ -74,6 +74,12 @@ public struct FocusSession: Codable, Sendable, Equatable, Hashable, Identifiable
         return active
     }
 
+    /// Absolute wall-clock end while running — for live `Text(timerInterval:)` in widgets / Live Activities.
+    public func runningEndDate(at now: Date = Date()) -> Date? {
+        guard state == .running else { return nil }
+        return now.addingTimeInterval(remaining(at: now))
+    }
+
     public func isExpired(at now: Date) -> Bool {
         state == .running && remaining(at: now) <= 0
     }

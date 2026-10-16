@@ -77,9 +77,11 @@ struct FocusSessionView: View {
             Spacer(minLength: QueueSpacing.sm)
 
             Text(task.title)
-                .font(QueueTypography.title(28))
+                .font(QueueTypography.title(22))
                 .foregroundStyle(QueueColors.ivory)
                 .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .minimumScaleFactor(0.8)
                 .padding(.horizontal, QueueSpacing.xl)
                 .accessibilityAddTraits(.isHeader)
 
@@ -115,7 +117,8 @@ struct FocusSessionView: View {
             }
 
             CompanionAnimationView(state: companionState, reduceMotion: reduceMotion)
-                .frame(height: 150)
+                .frame(height: 210)
+                .frame(maxWidth: 240)
                 .animation(QueueMotion.prefer(QueueMotion.standard, reduceMotion: reduceMotion), value: companionState)
 
             Spacer(minLength: QueueSpacing.sm)
