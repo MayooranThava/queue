@@ -25,6 +25,10 @@ targets:
       - path: Shared
     resources:
       - path: Queue/Resources/Assets.xcassets
+      - path: Queue/Resources/Atlases/Working.atlas
+      - path: Queue/Resources/Atlases/DeepFocus.atlas
+      - path: Queue/Resources/Atlases/Completed.atlas
+      - path: Queue/Resources/Atlases/Expired.atlas
     entitlements:
       path: Queue/Resources/Queue.entitlements
     dependencies:
