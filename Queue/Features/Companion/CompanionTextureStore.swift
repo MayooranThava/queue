@@ -1,14 +1,26 @@
 import SpriteKit
+import UIKit
 
-/// Atlas identifiers matching `Queue/Resources/Atlases/*.atlas`.
+/// Atlas identifiers matching asset-catalog sprite atlases / `*.atlas` folders.
 enum CompanionAtlasID: String, CaseIterable, Sendable {
     case working = "Working"
     case deepFocus = "DeepFocus"
     case completed = "Completed"
     case expired = "Expired"
+
+    var framePrefix: String {
+        switch self {
+        case .working: return "working"
+        case .deepFocus: return "deepfocus"
+        case .completed: return "completed"
+        case .expired: return "expired"
+        }
+    }
+
+    var expectedFrameCount: Int { 12 }
 }
 
-/// Loads and preloads companion sprite atlases once. Texture order follows filename sort.
+/// Loads and preloads companion sprite frames once. Texture order follows filename sort.
 final class CompanionTextureStore {
     static let shared = CompanionTextureStore()
 
@@ -25,7 +37,6 @@ final class CompanionTextureStore {
         if !already { didStartPreload = true }
         lock.unlock()
 
-        // Always ensure the cache is warm — cheap if already filled.
         for id in CompanionAtlasID.allCases {
             _ = textures(for: id)
         }
@@ -45,19 +56,38 @@ final class CompanionTextureStore {
         }
         lock.unlock()
 
-        let atlas = SKTextureAtlas(named: id.rawValue)
-        var ordered = Self.orderedTextures(from: atlas)
+        var ordered = Self.loadTextures(for: id)
 
-        // Until DeepFocus / Completed / Expired art is dropped into Resources/Atlases,
-        // fall back to Working so transitions stay pixel-aligned with the supplied set.
+        // Prefer Working art over an empty atlas so Focus never shows a blank companion.
         if ordered.isEmpty, id != .working {
             ordered = textures(for: .working)
         }
 
         lock.lock()
-        texturesByAtlas[id] = ordered
+        if !ordered.isEmpty {
+            texturesByAtlas[id] = ordered
+        }
         lock.unlock()
         return ordered
+    }
+
+    /// Load order: asset-catalog / compiled atlas → bundle `.atlas` folder → UIImage names.
+    static func loadTextures(for id: CompanionAtlasID) -> [SKTexture] {
+        let atlas = SKTextureAtlas(named: id.rawValue)
+        let fromAtlas = orderedTextures(from: atlas)
+        if fromAtlas.count >= id.expectedFrameCount {
+            return fromAtlas
+        }
+        if !fromAtlas.isEmpty {
+            return fromAtlas
+        }
+
+        let fromBundle = bundlePNGTextures(atlasName: id.rawValue)
+        if !fromBundle.isEmpty {
+            return fromBundle
+        }
+
+        return uiImageTextures(prefix: id.framePrefix, count: id.expectedFrameCount)
     }
 
     /// Filename-sorted textures so `working_000` … `working_011` play in authoring order.
@@ -73,8 +103,41 @@ final class CompanionTextureStore {
     }
 
     static func orderedTextures(from atlas: SKTextureAtlas) -> [SKTexture] {
-        orderedTextureNames(from: atlas).map { name in
+        orderedTextureNames(from: atlas).compactMap { name -> SKTexture? in
             let texture = atlas.textureNamed(name)
+            // Empty placeholder textures have zero size when the name is missing.
+            guard texture.size().width > 1, texture.size().height > 1 else { return nil }
+            texture.filteringMode = .linear
+            texture.usesMipmaps = false
+            return texture
+        }
+    }
+
+    private static func bundlePNGTextures(atlasName: String) -> [SKTexture] {
+        let subdirs = ["\(atlasName).atlas", "Atlases/\(atlasName).atlas", atlasName]
+        for subdir in subdirs {
+            guard let urls = Bundle.main.urls(forResourcesWithExtension: "png", subdirectory: subdir),
+                  !urls.isEmpty
+            else { continue }
+            let ordered = urls.sorted {
+                $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
+            }
+            let textures: [SKTexture] = ordered.compactMap { url in
+                guard let image = UIImage(contentsOfFile: url.path) else { return nil }
+                let texture = SKTexture(image: image)
+                texture.filteringMode = .linear
+                return texture
+            }
+            if !textures.isEmpty { return textures }
+        }
+        return []
+    }
+
+    private static func uiImageTextures(prefix: String, count: Int) -> [SKTexture] {
+        (0..<count).compactMap { index in
+            let name = String(format: "%@_%03d", prefix, index)
+            guard let image = UIImage(named: name) else { return nil }
+            let texture = SKTexture(image: image)
             texture.filteringMode = .linear
             return texture
         }
@@ -109,7 +172,6 @@ struct CompanionAnimationClip: Equatable {
         case .deepFocus:
             return CompanionAnimationClip(atlas: .deepFocus, playback: .loop, timePerFrame: 3.5 / 12.0)
         case .paused, .idle:
-            // Calm static pose from Working — no typing loop while paused/idle.
             return CompanionAnimationClip(atlas: .working, playback: .staticFrame, timePerFrame: 0)
         case .completed, .celebrating, .levelUp:
             return CompanionAnimationClip(atlas: .completed, playback: .playOnceHoldLast, timePerFrame: 1.7 / 12.0)

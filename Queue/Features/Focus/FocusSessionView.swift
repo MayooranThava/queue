@@ -12,7 +12,6 @@ struct FocusSessionView: View {
     @State private var session: FocusSession?
     @State private var companionState: CompanionVisualState = .preparing
     @State private var errorMessage: String?
-    @State private var showExitConfirm = false
     @State private var completionOutcome: FocusCompletionOutcome?
     @State private var didBootstrap = false
     @State private var contentAppeared = false
@@ -46,16 +45,6 @@ struct FocusSessionView: View {
         } message: {
             Text(errorMessage ?? "")
         }
-        .confirmationDialog(
-            "Leave focus?",
-            isPresented: $showExitConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Keep focusing", role: .cancel) {}
-            Button("Leave anyway") { dismiss() }
-        } message: {
-            Text("Your timer keeps running from real timestamps — you can return anytime.")
-        }
     }
 
     private var focusContent: some View {
@@ -63,7 +52,7 @@ struct FocusSessionView: View {
             HStack {
                 Spacer()
                 Button {
-                    showExitConfirm = true
+                    dismiss()
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 15, weight: .semibold))
@@ -117,9 +106,9 @@ struct FocusSessionView: View {
             }
 
             CompanionAnimationView(state: companionState, reduceMotion: reduceMotion)
-                .frame(height: 210)
-                .frame(maxWidth: 240)
-                .animation(QueueMotion.prefer(QueueMotion.standard, reduceMotion: reduceMotion), value: companionState)
+                .frame(width: 240, height: 240)
+                .frame(maxWidth: .infinity)
+                .accessibilityHidden(false)
 
             Spacer(minLength: QueueSpacing.sm)
 
