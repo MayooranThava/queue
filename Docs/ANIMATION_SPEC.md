@@ -63,7 +63,7 @@ SpriteKit plays authored PNG sequences from `Queue/Resources/Atlases/`:
 | `Completed.atlas` | completed, celebrating, levelUp | **~1.7s once**, hold final frame |
 | `Expired.atlas` | timerExpired | **~1.5s once**, hold final frame |
 
-All four atlas folders ship in the bundle. Replace DeepFocus / Completed / Expired PNGs in place (same size + naming) when unique art is ready — the SpriteKit loader already keys off those atlas names. If an atlas is empty at runtime, textures fall back to Working so Focus never shows an empty frame.
+Frames ship in `Assets.xcassets` as `Working.spriteatlas` / `DeepFocus.spriteatlas` / `Completed.spriteatlas` / `Expired.spriteatlas` (and mirrored `*.atlas` folders for bundle fallback). Replace DeepFocus / Completed / Expired PNGs in place when unique art is ready. Loader order: `SKTextureAtlas` → bundle `.atlas` PNGs → `UIImage(named:)`. Focus also paints a SwiftUI still from the same frames under the SpriteKit view so the companion never reads as blank.
 
 Frames share identical 768×768 bounds, sprite anchor `(0.5, 0.5)`, and scale. `resize: false` on `SKAction.animate` prevents desk/laptop drift. The `SKScene` is created once in `CompanionSpriteView`’s coordinator and is **not** rebuilt on Focus timer ticks. XP / completion logic stays in `FocusSessionView` and never depends on animation playback.
 

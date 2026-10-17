@@ -17,6 +17,9 @@ final class CompanionSpriteScene: SKScene {
 
         sprite.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         sprite.zPosition = 0
+        // Avoid a blank node before the first texture arrives.
+        sprite.color = .clear
+        sprite.colorBlendFactor = 0
         addChild(sprite)
         layoutSprite()
     }
@@ -28,8 +31,17 @@ final class CompanionSpriteScene: SKScene {
 
     override func didMove(to view: SKView) {
         view.allowsTransparency = true
+        view.isOpaque = false
+        view.backgroundColor = .clear
         backgroundColor = .clear
+        isPaused = false
         layoutSprite()
+        // Re-assert the current clip once the view is attached (textures may load late).
+        if let clip = appliedClip {
+            let generation = appliedGeneration
+            appliedClip = nil
+            apply(clip: clip, generation: generation)
+        }
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -58,7 +70,6 @@ final class CompanionSpriteScene: SKScene {
         case .staticFrame:
             sprite.removeAction(forKey: Self.animationKey)
             if let pose = clip.staticTexture(from: textures) {
-                // Set texture before clearing action path to avoid an empty frame.
                 sprite.texture = pose
             }
 
@@ -66,7 +77,6 @@ final class CompanionSpriteScene: SKScene {
             if sameClip, sprite.action(forKey: Self.animationKey) != nil {
                 return
             }
-            // Seed the first frame before swapping the action — no flash / empty frame.
             sprite.texture = textures[0]
             let animate = SKAction.animate(
                 with: textures,
@@ -103,6 +113,8 @@ final class CompanionSpriteScene: SKScene {
         sprite.position = .zero
         sprite.xScale = 1
         sprite.yScale = 1
+        sprite.isHidden = false
+        sprite.alpha = 1
     }
 
     private static let animationKey = "companion.atlas"
