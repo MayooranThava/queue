@@ -62,4 +62,17 @@ struct FocusTimerEngineTests {
             try await engine.complete()
         }
     }
+
+    @Test("Complete succeeds after expiry")
+    func completeAfterExpiry() async throws {
+        let clock = ControllableClock()
+        let engine = FocusTimerEngine(clock: clock)
+        _ = try await engine.start(taskID: UUID(), plannedDuration: 30)
+        clock.advance(by: 30)
+        let expired = await engine.evaluateExpiry()
+        #expect(expired?.state == .expired)
+        let completed = try await engine.complete()
+        #expect(completed.state == .completed)
+        #expect(completed.accumulatedActive == 30)
+    }
 }

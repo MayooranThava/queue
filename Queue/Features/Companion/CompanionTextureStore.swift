@@ -32,7 +32,7 @@ final class CompanionTextureStore {
 
         guard !already else { return }
         let atlases = CompanionAtlasID.allCases.map { SKTextureAtlas(named: $0.rawValue) }
-        SKTextureAtlas.preload(atlases) {
+        SKTextureAtlas.preloadTextureAtlases(atlases) {
             // Cache already populated synchronously; preload warms GPU residency.
         }
     }

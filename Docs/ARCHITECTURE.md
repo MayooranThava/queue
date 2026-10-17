@@ -102,7 +102,7 @@ Pure domain types and services with no UIKit/SwiftUI/SwiftData imports.
 
 `queued → active → paused → active`  
 `active|paused → completed | expired | review | skipped`  
-`expired → active (extend/continue) | review`  
+`expired → completed | active (extend/continue) | review | skipped`  
 `review → queued | skipped | archived`  
 `completed|skipped → archived`  
 `archived` is terminal for active queue membership.
