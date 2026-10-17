@@ -3,28 +3,28 @@
    <BuildAction parallelizeBuildables = "YES" buildImplicitDependencies = "YES">
       <BuildActionEntries>
          <BuildActionEntry buildForTesting = "YES" buildForRunning = "YES" buildForProfiling = "YES" buildForArchiving = "YES" buildForAnalyzing = "YES">
-            <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "7A0F62E31EC64AA7B1BAD74B" BuildableName = "Queue.app" BlueprintName = "Queue" ReferencedContainer = "container:Queue.xcodeproj" />
+            <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "4B585BCDC750430497210A6A" BuildableName = "Queue.app" BlueprintName = "Queue" ReferencedContainer = "container:Queue.xcodeproj" />
          </BuildActionEntry>
          <BuildActionEntry buildForTesting = "NO" buildForRunning = "YES" buildForProfiling = "YES" buildForArchiving = "YES" buildForAnalyzing = "YES">
-            <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "393C4347F6B949EABD4EE95A" BuildableName = "QueueWidgets.appex" BlueprintName = "QueueWidgets" ReferencedContainer = "container:Queue.xcodeproj" />
+            <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "7B2A6CF5DC804C4583726A79" BuildableName = "QueueWidgets.appex" BlueprintName = "QueueWidgets" ReferencedContainer = "container:Queue.xcodeproj" />
          </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction buildConfiguration = "Debug" selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv = "YES">
       <Testables>
          <TestableReference skipped = "NO">
-            <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "1643F87AF75145ADB8BFF1CF" BuildableName = "QueueTests.xctest" BlueprintName = "QueueTests" ReferencedContainer = "container:Queue.xcodeproj" />
+            <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "2B1EB39C46AB4B1190D3C45A" BuildableName = "QueueTests.xctest" BlueprintName = "QueueTests" ReferencedContainer = "container:Queue.xcodeproj" />
          </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction buildConfiguration = "Debug" selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB" launchStyle = "0" useCustomWorkingDirectory = "NO" ignoresPersistentStateOnLaunch = "NO" debugDocumentVersioning = "YES" debugServiceExtension = "internal" allowLocationSimulation = "YES">
       <BuildableProductRunnable runnableDebuggingMode = "0">
-         <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "7A0F62E31EC64AA7B1BAD74B" BuildableName = "Queue.app" BlueprintName = "Queue" ReferencedContainer = "container:Queue.xcodeproj" />
+         <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "4B585BCDC750430497210A6A" BuildableName = "Queue.app" BlueprintName = "Queue" ReferencedContainer = "container:Queue.xcodeproj" />
       </BuildableProductRunnable>
    </LaunchAction>
    <ProfileAction buildConfiguration = "Release" shouldUseLaunchSchemeArgsEnv = "YES" savedToolIdentifier = "" useCustomWorkingDirectory = "NO" debugDocumentVersioning = "YES">
       <BuildableProductRunnable runnableDebuggingMode = "0">
-         <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "7A0F62E31EC64AA7B1BAD74B" BuildableName = "Queue.app" BlueprintName = "Queue" ReferencedContainer = "container:Queue.xcodeproj" />
+         <BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "4B585BCDC750430497210A6A" BuildableName = "Queue.app" BlueprintName = "Queue" ReferencedContainer = "container:Queue.xcodeproj" />
       </BuildableProductRunnable>
    </ProfileAction>
    <AnalyzeAction buildConfiguration = "Debug" />

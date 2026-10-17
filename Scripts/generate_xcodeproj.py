@@ -33,6 +33,8 @@ def main() -> None:
     # Shared files appear in both targets with distinct build-file IDs.
     test_sources = collect_files(ROOT / "QueueTests", {".swift"})
     assets = ROOT / "Queue" / "Resources" / "Assets.xcassets"
+    atlas_root = ROOT / "Queue" / "Resources" / "Atlases"
+    atlases = sorted(atlas_root.glob("*.atlas")) if atlas_root.exists() else []
     info_plist = ROOT / "Queue" / "Resources" / "Info.plist"
     app_entitlements = ROOT / "Queue" / "Resources" / "Queue.entitlements"
     widget_info = ROOT / "QueueWidgets" / "Info.plist"
@@ -46,6 +48,7 @@ def main() -> None:
     shared_group = xid()
     tests_group = xid()
     packages_group = xid()
+    atlases_group = xid()
     app_target = xid()
     widget_target = xid()
     test_target = xid()
@@ -85,6 +88,8 @@ def main() -> None:
     product_ref_test = xid()
     assets_ref = xid()
     assets_build = xid()
+    atlas_refs: dict[Path, str] = {path: xid() for path in atlases}
+    atlas_builds: dict[Path, str] = {path: xid() for path in atlases}
     widget_embed_build = xid()
     app_entitlements_ref = xid()
     widget_entitlements_ref = xid()
@@ -122,6 +127,8 @@ def main() -> None:
     for path, bid in build_files_test.items():
         w(f"\t\t{bid} /* {path.name} in Sources */ = {{isa = PBXBuildFile; fileRef = {file_refs[path]} /* {path.name} */; }};")
     w(f"\t\t{assets_build} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {assets_ref} /* Assets.xcassets */; }};")
+    for path, bid in atlas_builds.items():
+        w(f"\t\t{bid} /* {path.name} in Resources */ = {{isa = PBXBuildFile; fileRef = {atlas_refs[path]} /* {path.name} */; }};")
     w(f"\t\t{package_product_dep_app} /* QueueCore in Frameworks */ = {{isa = PBXBuildFile; productRef = {product_ref_app} /* QueueCore */; }};")
     w(f"\t\t{package_product_dep_widget} /* QueueCore in Frameworks */ = {{isa = PBXBuildFile; productRef = {product_ref_widget} /* QueueCore */; }};")
     w(f"\t\t{package_product_dep_test} /* QueueCore in Frameworks */ = {{isa = PBXBuildFile; productRef = {product_ref_test} /* QueueCore */; }};")
@@ -138,6 +145,12 @@ def main() -> None:
         f"\t\t{assets_ref} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; "
         f"name = Assets.xcassets; path = Queue/Resources/Assets.xcassets; sourceTree = SOURCE_ROOT; }};"
     )
+    for path, ref in atlas_refs.items():
+        rel = path.relative_to(ROOT).as_posix()
+        w(
+            f"\t\t{ref} /* {path.name} */ = {{isa = PBXFileReference; lastKnownFileType = folder; "
+            f"name = {path.name}; path = {rel}; sourceTree = SOURCE_ROOT; }};"
+        )
     w(
         f"\t\t{app_entitlements_ref} /* Queue.entitlements */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; "
         f"path = Queue/Resources/Queue.entitlements; sourceTree = SOURCE_ROOT; }};"
@@ -172,9 +185,19 @@ def main() -> None:
     w("\t\t\tname = Products;")
     w('\t\t\tsourceTree = "<group>";')
     w("\t\t};")
+    atlas_child_ids = ", ".join(atlas_refs[p] for p in atlases)
+    w(f"\t\t{atlases_group} /* Atlases */ = {{")
+    w("\t\t\tisa = PBXGroup;")
+    w(f"\t\t\tchildren = ({atlas_child_ids});")
+    w("\t\t\tname = Atlases;")
+    w('\t\t\tsourceTree = "<group>";')
+    w("\t\t};")
     w(f"\t\t{queue_group} /* Queue */ = {{")
     w("\t\t\tisa = PBXGroup;")
-    w(f"\t\t\tchildren = ({', '.join(file_refs[p] for p in app_only) + (', ' if app_only else '')}{assets_ref}, {app_entitlements_ref});")
+    w(
+        f"\t\t\tchildren = ({', '.join(file_refs[p] for p in app_only) + (', ' if app_only else '')}"
+        f"{assets_ref}, {atlases_group}, {app_entitlements_ref});"
+    )
     w("\t\t\tname = Queue;")
     w('\t\t\tsourceTree = "<group>";')
     w("\t\t};")
@@ -221,10 +244,11 @@ def main() -> None:
     w(f"\t\t\tfiles = ({', '.join(build_files_test.values())});")
     w("\t\t\trunOnlyForDeploymentPostprocessing = 0;")
     w("\t\t};")
+    resource_files = ", ".join([assets_build, *[atlas_builds[p] for p in atlases]])
     w(f"\t\t{resources_phase} /* Resources */ = {{")
     w("\t\t\tisa = PBXResourcesBuildPhase;")
     w("\t\t\tbuildActionMask = 2147483647;")
-    w(f"\t\t\tfiles = ({assets_build});")
+    w(f"\t\t\tfiles = ({resource_files});")
     w("\t\t\trunOnlyForDeploymentPostprocessing = 0;")
     w("\t\t};")
     w(f"\t\t{frameworks_phase_app} /* Frameworks */ = {{")

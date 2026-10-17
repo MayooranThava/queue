@@ -47,32 +47,29 @@ Celebrations are **skippable**. Never block navigation. With Reduce Motion: cros
 ## Implementation layers
 
 1. SwiftUI for layout, XP, progress  
-2. `CompanionAnimationView` → Rive if configured, else SwiftUI vector, else static  
+2. `CompanionAnimationView` → SpriteKit atlas renderer (`SKTextureAtlas` + `SKSpriteNode`)  
 3. Pause companion activity when scene phase ≠ active  
 4. `QueueMotion` tokens + soft haptics (`QueueHaptics`) on focus transitions  
 5. `FocusCountdownRing` — remaining fraction from session timestamps  
 
 ### Native companion detail (current)
 
-Layered vector scene in a fixed **512×512** design space (`Features/Companion`), guided by
-`DesignReferences/queue-character-concept.png` — **not** cropped sprite playback.
+SpriteKit plays authored PNG sequences from `Queue/Resources/Atlases/`:
 
-Cream companion, warm lamp, fixed desk / laptop / plant / books. Only character motion + effects animate.
-
-| State | Loop / once | Motion |
+| Atlas | States | Playback |
 | --- | --- | --- |
-| idle | loop | Soft breath, `...` bubble |
-| preparing | loop | Mug in hands, screen warm-up |
-| working | **2.6s seamless loop** | Lamp on, alternating typing arms, independent blinks, subtle lean |
-| deepFocus | **3.5s loop** | Headphones, calmer hands, closed-eye beats, floating notes |
-| paused | loop | Dim screen, slower breath |
-| timerExpired | **~1.5s once** | Hourglass, scribble → lightbulb (encouraging) |
-| celebrating / completed | **~1.7s once** | Smile, arms up, bounce, sage/gold sparkles |
-| levelUp | once | Celebrate + held glowing star |
+| `Working.atlas` | working, preparing; static for idle/paused | **2.6s seamless loop** (12 frames) |
+| `DeepFocus.atlas` | deepFocus | **3.5s seamless loop** |
+| `Completed.atlas` | completed, celebrating, levelUp | **~1.7s once**, hold final frame |
+| `Expired.atlas` | timerExpired | **~1.5s once**, hold final frame |
 
-Differences vs concept sheet (intentional for maintainability): vector recreation rather than frame crops; leaf logo simplified; particle count restrained for Focus performance.
+All four atlas folders ship in the bundle. Replace DeepFocus / Completed / Expired PNGs in place (same size + naming) when unique art is ready — the SpriteKit loader already keys off those atlas names. If an atlas is empty at runtime, textures fall back to Working so Focus never shows an empty frame.
 
-`CompanionAnimationView(compact: true)` keeps the same scene readable inside the Queue “Now” card.
+Frames share identical 768×768 bounds, sprite anchor `(0.5, 0.5)`, and scale. `resize: false` on `SKAction.animate` prevents desk/laptop drift. The `SKScene` is created once in `CompanionSpriteView`’s coordinator and is **not** rebuilt on Focus timer ticks. XP / completion logic stays in `FocusSessionView` and never depends on animation playback.
+
+Reduce Motion → mid/end static pose from the mapped atlas. Background (`scenePhase != .active`) pauses the scene so loops suspend without tearing down textures.
+
+`CompanionAnimationView(compact: true)` uses the same SpriteKit scene inside the Queue “Now” card.
 
 Completion: staged entrance → XP count (`motion.xpCount`) → level bar fill → optional level-up badge (`motion.levelUp`). All skippable; Reduce Motion uses cross-fade/static.
 

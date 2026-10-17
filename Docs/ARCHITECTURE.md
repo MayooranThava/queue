@@ -159,13 +159,7 @@ Focus is **not** a tab. Task creation uses a prominent toolbar / FAB-style add c
 
 ## Companion
 
-`CompanionAnimationView` resolves:
-
-1. Rive asset if present and configured (future)
-2. Native SwiftUI vector companion (default)
-3. Static illustration when Reduce Motion is on
-
-No compile-time hard dependency on external animation files.
+`CompanionAnimationView` hosts a single SpriteKit scene (`CompanionSpriteView` / `CompanionSpriteScene`) that plays `SKTextureAtlas` sequences from `Queue/Resources/Atlases/` (`Working`, `DeepFocus`, `Completed`, `Expired`). Frames are ordered by filename, drawn at identical size/anchor/scale, and paused when `scenePhase != .active`. Reduce Motion shows a static atlas pose. Timer / XP domain logic does not depend on animation playback.
 
 ## Calendar
 
