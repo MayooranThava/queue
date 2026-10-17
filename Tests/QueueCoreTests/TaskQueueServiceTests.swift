@@ -54,6 +54,18 @@ struct TaskQueueServiceTests {
         #expect(undone.title == "A")
     }
 
+    @Test("Complete after timer expiry")
+    func completeAfterExpiry() async throws {
+        let service = TaskQueueService(clock: ControllableClock())
+        let a = try await service.createTask(title: "A")
+        _ = try await service.start(id: a.id)
+        let expired = try await service.expire(id: a.id)
+        #expect(expired.status == .expired)
+        let completed = try await service.complete(id: a.id, focusDuration: 600)
+        #expect(completed.status == .completed)
+        #expect(completed.actualFocusDuration == 600)
+    }
+
     @Test("Invalid transition rejected")
     func invalidTransition() async throws {
         let service = TaskQueueService(clock: ControllableClock())

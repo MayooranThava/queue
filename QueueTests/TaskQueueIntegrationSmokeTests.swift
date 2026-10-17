@@ -7,6 +7,10 @@ final class TaskQueueIntegrationSmokeTests: XCTestCase {
         XCTAssertFalse(TaskStateMachine.canTransition(from: .queued, applying: .pause))
     }
 
+    func testStateMachineAllowsCompleteFromExpired() {
+        XCTAssertTrue(TaskStateMachine.canTransition(from: .expired, applying: .complete))
+    }
+
     func testLevelTableIsMonotonic() {
         let xp = LevelTable.standard.map(\.minimumXP)
         XCTAssertEqual(xp, xp.sorted())

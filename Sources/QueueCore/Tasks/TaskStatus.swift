@@ -40,8 +40,8 @@ public enum TaskStateMachine {
              (.active, .moveToReview), (.active, .skip): return true
         case (.paused, .resume), (.paused, .complete), (.paused, .expire),
              (.paused, .moveToReview), (.paused, .skip): return true
-        case (.expired, .continueWithoutTimer), (.expired, .moveToReview),
-             (.expired, .skip), (.expired, .start): return true
+        case (.expired, .continueWithoutTimer), (.expired, .complete),
+             (.expired, .moveToReview), (.expired, .skip), (.expired, .start): return true
         case (.review, .requeue), (.review, .skip), (.review, .archive): return true
         case (.completed, .archive), (.completed, .undoComplete): return true
         case (.skipped, .archive), (.skipped, .requeue): return true
