@@ -75,9 +75,11 @@ final class CompanionSpriteScene: SKScene {
         steam.isHidden = clip.playback == .staticFrame || !isWorking
         // Add subtle sub-frame motion without altering atlas frame ordering or artwork.
         // Keep the desk/laptop anchored; only the sprite's tiny vertical movement changes.
-        sprite.removeAction(forKey: typingMotionKey)
-        sprite.position = .zero
-        if clip.playback == .loop && isWorking {
+        if !sameClip || sprite.action(forKey: typingMotionKey) == nil {
+            sprite.removeAction(forKey: typingMotionKey)
+            sprite.position = .zero
+        }
+        if clip.playback == .loop && isWorking && sprite.action(forKey: typingMotionKey) == nil {
             let lift = SKAction.moveBy(x: 0, y: size.height * 0.002, duration: 0.14)
             lift.timingMode = .easeInEaseOut
             let settle = lift.reversed()
