@@ -9,6 +9,7 @@ final class CompanionSpriteScene: SKScene {
     private var suspended = false
     // A subtle secondary motion layer, independent of the authored typing frames.
     private let steam = SKNode()
+    private let typingMotionKey = "companion.typingMotion"
 
     override init(size: CGSize) {
         super.init(size: size)
@@ -39,7 +40,7 @@ final class CompanionSpriteScene: SKScene {
         view.isOpaque = false
         view.backgroundColor = .clear
         backgroundColor = .clear
-        isPaused = false
+        isPaused = suspended
         layoutSprite()
         // Re-assert the current clip once the view is attached (textures may load late).
         if let clip = appliedClip {
@@ -70,7 +71,18 @@ final class CompanionSpriteScene: SKScene {
         appliedGeneration = generation
 
         layoutSprite()
-        steam.isHidden = clip.playback == .staticFrame || (clip.atlas != .working && clip.atlas != .deepFocus)
+        let isWorking = clip.atlas == .working || clip.atlas == .deepFocus
+        steam.isHidden = clip.playback == .staticFrame || !isWorking
+        // Add subtle sub-frame motion without altering atlas frame ordering or artwork.
+        // Keep the desk/laptop anchored; only the sprite's tiny vertical movement changes.
+        sprite.removeAction(forKey: typingMotionKey)
+        sprite.position = .zero
+        if clip.playback == .loop && isWorking {
+            let lift = SKAction.moveBy(x: 0, y: size.height * 0.002, duration: 0.14)
+            lift.timingMode = .easeInEaseOut
+            let settle = lift.reversed()
+            sprite.run(SKAction.repeatForever(SKAction.sequence([lift, settle])), withKey: typingMotionKey)
+        }
 
         switch clip.playback {
         case .staticFrame:
@@ -130,7 +142,7 @@ final class CompanionSpriteScene: SKScene {
         // Low-contrast wisps drift upward and fade, without changing the atlas frame bounds.
         for index in 0..<3 {
             let wisp = SKShapeNode(ellipseOf: CGSize(width: 7, height: 13))
-            wisp.fillColor = SKColor(white: 1, alpha: 0.32)
+            wisp.fillColor = SKColor(white: 0.86, alpha: 0.32)
             wisp.strokeColor = .clear
             wisp.alpha = 0
             wisp.position = CGPoint(x: CGFloat(index * 6 - 6), y: 0)
@@ -147,7 +159,8 @@ final class CompanionSpriteScene: SKScene {
                 wisp?.alpha = 0
             }
             let delay = SKAction.wait(forDuration: Double(index) * 0.7)
-            wisp.run(SKAction.sequence([delay, SKAction.repeatForever(SKAction.sequence([rise, reset]))]))
+            let cycle = SKAction.sequence([rise, reset])
+            wisp.run(SKAction.sequence([delay, SKAction.repeatForever(cycle)]))
         }
     }
 
