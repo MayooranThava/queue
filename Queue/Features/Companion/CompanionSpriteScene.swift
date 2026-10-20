@@ -7,6 +7,8 @@ final class CompanionSpriteScene: SKScene {
     private var appliedClip: CompanionAnimationClip?
     private var appliedGeneration: UInt = 0
     private var suspended = false
+    // A subtle secondary motion layer, independent of the authored typing frames.
+    private let steam = SKNode()
 
     override init(size: CGSize) {
         super.init(size: size)
@@ -21,6 +23,9 @@ final class CompanionSpriteScene: SKScene {
         sprite.color = .clear
         sprite.colorBlendFactor = 0
         addChild(sprite)
+        steam.zPosition = 1
+        addChild(steam)
+        configureSteam()
         layoutSprite()
     }
 
@@ -65,6 +70,7 @@ final class CompanionSpriteScene: SKScene {
         appliedGeneration = generation
 
         layoutSprite()
+        steam.isHidden = clip.playback == .staticFrame || (clip.atlas != .working && clip.atlas != .deepFocus)
 
         switch clip.playback {
         case .staticFrame:
@@ -115,6 +121,34 @@ final class CompanionSpriteScene: SKScene {
         sprite.yScale = 1
         sprite.isHidden = false
         sprite.alpha = 1
+        // Coordinates are in the same normalized 768-point design space as the art.
+        steam.position = CGPoint(x: side * 0.23, y: side * 0.065)
+        steam.setScale(side / 768)
+    }
+
+    private func configureSteam() {
+        // Low-contrast wisps drift upward and fade, without changing the atlas frame bounds.
+        for index in 0..<3 {
+            let wisp = SKShapeNode(ellipseOf: CGSize(width: 7, height: 13))
+            wisp.fillColor = SKColor(white: 1, alpha: 0.32)
+            wisp.strokeColor = .clear
+            wisp.alpha = 0
+            wisp.position = CGPoint(x: CGFloat(index * 6 - 6), y: 0)
+            steam.addChild(wisp)
+            let rise = SKAction.group([
+                SKAction.moveBy(x: CGFloat(index - 1) * 9, y: 48, duration: 2.1),
+                SKAction.sequence([
+                    SKAction.fadeAlpha(to: 0.42, duration: 0.6),
+                    SKAction.fadeOut(withDuration: 1.5)
+                ])
+            ])
+            let reset = SKAction.run { [weak wisp] in
+                wisp?.position = CGPoint(x: CGFloat(index * 6 - 6), y: 0)
+                wisp?.alpha = 0
+            }
+            let delay = SKAction.wait(forDuration: Double(index) * 0.7)
+            wisp.run(SKAction.sequence([delay, SKAction.repeatForever(SKAction.sequence([rise, reset]))]))
+        }
     }
 
     private static let animationKey = "companion.atlas"
