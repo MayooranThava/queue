@@ -32,5 +32,9 @@ struct MainTabView: View {
             }
         }
         .tint(QueueColors.sageDeep)
+        .toolbarBackground(QueueColors.background, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
+        .toolbarBackground(QueueColors.background, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
     }
 }
