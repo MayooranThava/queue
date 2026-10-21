@@ -53,7 +53,8 @@ targets:
         CFBundleDisplayName: Queue
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
-        UILaunchScreen: {}
+        UILaunchScreen:
+          UIColorName: LaunchBackground
         NSSupportsLiveActivities: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
