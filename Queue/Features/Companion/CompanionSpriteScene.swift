@@ -10,7 +10,6 @@ final class CompanionSpriteScene: SKScene {
     // A subtle secondary motion layer, independent of the authored typing frames.
     private let steam = SKNode()
     private static let typingWarpKey = "companion.typing.keyframes"
-    private static let typingWarpFrames: [SKWarpGeometryGrid] = makeTypingWarpFrames()
 
     override init(size: CGSize) {
         super.init(size: size)
@@ -73,21 +72,10 @@ final class CompanionSpriteScene: SKScene {
 
         let isWorking = clip.atlas == .working || clip.atlas == .deepFocus
         steam.isHidden = clip.playback == .staticFrame || !isWorking
-        // Animate local geometry around the character's existing paws, not
-        // a detached overlay or the desk. Do not restart on timer updates.
-        let shouldType = isWorking && clip.playback == .loop
-        if shouldType {
-            if sprite.action(forKey: Self.typingWarpKey) == nil {
-                let keyframes: [SKAction] = Self.typingWarpFrames.compactMap {
-                    SKAction.warp(to: $0, duration: 0.060)
-                }
-                sprite.run(.repeatForever(.sequence(keyframes)),
-                           withKey: Self.typingWarpKey)
-            }
-        } else {
-            sprite.removeAction(forKey: Self.typingWarpKey)
-            sprite.warpGeometry = nil
-        }
+        // Safety rollback: disable runtime warp deformation after a task-start
+        // crash report. Keep the existing texture-atlas animation and steam.
+        sprite.removeAction(forKey: Self.typingWarpKey)
+        sprite.warpGeometry = nil
 
         switch clip.playback {
         case .staticFrame:
@@ -167,50 +155,6 @@ final class CompanionSpriteScene: SKScene {
             let delay = SKAction.wait(forDuration: Double(index) * 0.7)
             let cycle = SKAction.sequence([rise, reset])
             wisp.run(SKAction.sequence([delay, SKAction.repeatForever(cycle)]))
-        }
-    }
-
-    /// Twenty real deformation poses of the original illustrated hands.
-    /// All vertices outside two small regions are mathematically unchanged,
-    /// keeping the laptop, desk, mug, plant and lamp locked in place.
-    /// Source image is 768x768; SpriteKit grid coordinates have Y pointing up.
-    private static func makeTypingWarpFrames() -> [SKWarpGeometryGrid] {
-        let columns = 64
-        let rows = 64
-        var original: [vector_float2] = []
-        for row in 0...rows {
-            for column in 0...columns {
-                original.append(vector_float2(Float(column) / Float(columns),
-                                              Float(row) / Float(rows)))
-            }
-        }
-        return (0..<20).map { index in
-            let phase = Float(index) * 2 * Float.pi / 20
-            let moved = original.map { point -> vector_float2 in
-                var displacement = vector_float2.zero
-                // The visible hands sit at image positions roughly (390,460)
-                // and (445,470). Convert image Y to SpriteKit bottom-up Y.
-                let hands: [(Float, Float, Float)] = [
-                    (0.505, 0.389, 0),
-                    (0.574, 0.382, Float.pi)
-                ]
-                for (cx, cy, offset) in hands {
-                    let dx = (point.x - cx) / 0.055
-                    let dy = (point.y - cy) / 0.050
-                    let radiusSquared = dx * dx + dy * dy
-                    // Compact support: exactly zero outside each paw.
-                    if radiusSquared < 1 {
-                        let influence = pow(1 - radiusSquared, 2)
-                        let press = (1 - cos(phase * 2 + offset)) / 2
-                        displacement.x += influence * sin(phase + offset) * 0.009
-                        displacement.y -= influence * press * 0.025
-                    }
-                }
-                return point + displacement
-            }
-            return SKWarpGeometryGrid(columns: columns, rows: rows,
-                                      sourcePositions: original,
-                                      destinationPositions: moved)
         }
     }
 
