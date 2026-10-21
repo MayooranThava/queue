@@ -8,7 +8,7 @@ on:
       - '.github/workflows/typing-candidate.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   render:
@@ -32,3 +32,21 @@ jobs:
           name: typing-candidate-20-frames
           path: Artwork/Candidates/
           retention-days: 30
+
+      - name: Publish review-only frames to a dedicated branch
+        if: success() && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B companion-typing-preview
+          git add -f Artwork/Candidates/Typing.atlas/ Artwork/Candidates/typing_preview.gif Artwork/Candidates/audit/
+          if git diff --cached --quiet; then
+            echo "Candidate artifacts unchanged"
+          else
+            git commit -m "Render review-only typing candidate frames (not shipped)"
+          fi
+          git push origin HEAD:refs/heads/companion-typing-preview --force
+          echo "Preview: https://github.com/${{ github.repository }}/blob/companion-typing-preview/Artwork/Candidates/typing_preview.gif" >> "$GITHUB_STEP_SUMMARY"
