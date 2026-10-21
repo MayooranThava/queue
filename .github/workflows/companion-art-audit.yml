@@ -30,8 +30,8 @@ jobs:
           done
       - name: Validate candidate 20-frame atlas (when present)
         run: |
-          if [ -f "Queue/Resources/Atlases/Typing.atlas/typing_000.png" ]; then
-            python Scripts/validate_companion_frames.py Queue/Resources/Atlases/Typing.atlas
+          if [ -f "Artwork/Candidates/Typing.atlas/typing_000.png" ]; then
+            python Scripts/validate_companion_frames.py Artwork/Candidates/Typing.atlas
           fi
       - name: Upload visual audit reports
         if: always()
