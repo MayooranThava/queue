@@ -78,7 +78,7 @@ final class CompanionSpriteScene: SKScene {
         let shouldType = isWorking && clip.playback == .loop
         if shouldType {
             if sprite.action(forKey: Self.typingWarpKey) == nil {
-                let keyframes = Self.typingWarpFrames.map {
+                let keyframes: [SKAction] = Self.typingWarpFrames.compactMap {
                     SKAction.warp(to: $0, duration: 0.055)
                 }
                 sprite.run(.repeatForever(.sequence(keyframes)),
