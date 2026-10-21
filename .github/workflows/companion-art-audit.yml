@@ -1,0 +1,42 @@
+name: Companion artwork audit
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Queue/Resources/Atlases/**'
+      - 'Scripts/audit_companion_art.py'
+      - 'Scripts/validate_companion_frames.py'
+      - '.github/workflows/companion-art-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install image tooling
+        run: python -m pip install --disable-pip-version-check Pillow==11.1.0
+      - name: Audit current production companion art
+        run: |
+          set -euo pipefail
+          for atlas in Working DeepFocus Completed Expired; do
+            python Scripts/audit_companion_art.py "Queue/Resources/Atlases/${atlas}.atlas" --output "art-audit/${atlas}"
+          done
+      - name: Validate candidate 20-frame atlas (when present)
+        run: |
+          if [ -f "Queue/Resources/Atlases/Typing.atlas/typing_000.png" ]; then
+            python Scripts/validate_companion_frames.py Queue/Resources/Atlases/Typing.atlas
+          fi
+      - name: Upload visual audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: companion-art-audit
+          path: art-audit/
+          if-no-files-found: warn
