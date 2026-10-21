@@ -35,7 +35,15 @@ def main():
         (369, 431, 419, 498), # left-side paw, partially behind laptop
         (405, 433, 493, 513), # right-side paw over keyboard
     ]
-    masks = [mask_for_ellipse(original.size, b, feather=3) for b in regions]
+    # Laptop is a rigid foreground prop. Prevent the paw masks from ever
+    # selecting pixels from its lid or keyboard chassis.
+    protected = Image.new("L", original.size, 0)
+    protect_draw = ImageDraw.Draw(protected)
+    protect_draw.polygon([(146, 380), (363, 382), (401, 540), (174, 530)], fill=255)
+    protect_draw.polygon([(390, 505), (498, 485), (501, 520), (394, 544)], fill=255)
+    keep = ImageChops.invert(protected)
+    masks = [ImageChops.multiply(mask_for_ellipse(original.size, b, feather=2), keep)
+             for b in regions]
     base = np.array(original)
     # Repair exposed pixels from the displaced paws. Alpha channel remains
     # transparent outside the source illustration.
@@ -75,6 +83,11 @@ def main():
                 fillcolor=(0, 0, 0, 0),
             )
             frame = Image.alpha_composite(frame, shifted)
+        # Repaint the laptop's rigid geometry from the original on every
+        # frame. This guards against inpainting and transformed-edge bleed.
+        rigid = original.copy()
+        rigid.putalpha(ImageChops.multiply(original.getchannel("A"), protected))
+        frame = Image.alpha_composite(frame, rigid)
         dest = OUTPUT / f"typing_{index:03d}.png"
         frame.save(dest, optimize=True)
         thumb = Image.new("RGBA", frame.size, (35, 35, 38, 255))
