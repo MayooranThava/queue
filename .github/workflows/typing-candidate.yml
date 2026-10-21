@@ -50,3 +50,24 @@ jobs:
           fi
           git push origin HEAD:refs/heads/companion-typing-preview --force
           echo "Preview: https://github.com/${{ github.repository }}/blob/companion-typing-preview/Artwork/Candidates/typing_preview.gif" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install regenerated frames into the iOS atlas
+        if: success() && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          # Keep generated files outside the working tree while switching back
+          # from the preview branch. Never force-push the production branch.
+          mkdir -p /tmp/queue-typing-atlas
+          cp Artwork/Candidates/Typing.atlas/typing_*.png /tmp/queue-typing-atlas/
+          git fetch origin main
+          git checkout -B main origin/main
+          mkdir -p Queue/Resources/Atlases/Typing.atlas
+          cp /tmp/queue-typing-atlas/typing_*.png Queue/Resources/Atlases/Typing.atlas/
+          python Scripts/validate_companion_frames.py Queue/Resources/Atlases/Typing.atlas
+          git add Queue/Resources/Atlases/Typing.atlas/typing_*.png
+          if git diff --cached --quiet; then
+            echo "Shipping frames already match regenerated frames"
+          else
+            git commit -m "Regenerate 20 typing frames with rigid laptop geometry"
+            git push origin HEAD:refs/heads/main
+          fi
