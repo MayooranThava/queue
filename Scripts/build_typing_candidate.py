@@ -8,7 +8,7 @@ from pathlib import Path
 import math
 import numpy as np
 import cv2
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageChops
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "Queue/Resources/Atlases/Working.atlas/working_000.png"
@@ -59,9 +59,10 @@ def main():
             dx = round(1.5 * math.sin(phase * 2 + hand))
             dy = round(5.0 * max(0, wave) - 2.0 * max(0, -wave))
             moving = original.copy()
-            moving.putalpha(mask)
+            # Preserve the source transparency; the ellipse is only a region mask.
+            moving.putalpha(ImageChops.multiply(original.getchannel("A"), mask))
             shifted = Image.new("RGBA", original.size)
-            shifted.paste(moving, (dx, dy), moving)
+            shifted.paste(moving, (dx, dy))
             frame = Image.alpha_composite(frame, shifted)
         dest = OUTPUT / f"typing_{index:03d}.png"
         frame.save(dest, optimize=True)
