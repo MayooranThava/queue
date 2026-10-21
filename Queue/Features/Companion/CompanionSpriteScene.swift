@@ -11,6 +11,8 @@ final class CompanionSpriteScene: SKScene {
     private let steam = SKNode()
     private let typingMotionKey = "companion.typingMotion"
     private let typingTiltKey = "companion.typingTilt"
+    private let typingPaws = SKSpriteNode()
+    private let pawsActionKey = "companion.paws.frames"
 
     override init(size: CGSize) {
         super.init(size: size)
@@ -25,6 +27,9 @@ final class CompanionSpriteScene: SKScene {
         sprite.color = .clear
         sprite.colorBlendFactor = 0
         addChild(sprite)
+        typingPaws.zPosition = 2
+        typingPaws.isHidden = true
+        addChild(typingPaws)
         steam.zPosition = 1
         addChild(steam)
         configureSteam()
@@ -73,33 +78,25 @@ final class CompanionSpriteScene: SKScene {
 
         let isWorking = clip.atlas == .working || clip.atlas == .deepFocus
         steam.isHidden = clip.playback == .staticFrame || !isWorking
-        // Keep the existing authored atlas playing while adding a visible, smooth
-        // typing cadence. Do not restart these actions on SwiftUI timer ticks.
-        if clip.playback == .loop && isWorking {
-            if sprite.action(forKey: typingMotionKey) == nil {
-                let down = SKAction.group([
-                    SKAction.moveTo(y: -size.height * 0.006, duration: 0.16),
-                    SKAction.scaleY(to: 0.991, duration: 0.16)
-                ])
-                let up = SKAction.group([
-                    SKAction.moveTo(y: 0, duration: 0.20),
-                    SKAction.scaleY(to: 1, duration: 0.20)
-                ])
-                down.timingMode = .easeInEaseOut
-                up.timingMode = .easeInEaseOut
-                sprite.run(.repeatForever(.sequence([down, up, .wait(forDuration: 0.12)])), withKey: typingMotionKey)
-            }
-            if sprite.action(forKey: typingTiltKey) == nil {
-                let tilt = SKAction.rotate(toAngle: 0.006, duration: 0.22, shortestUnitArc: true)
-                let returnTilt = SKAction.rotate(toAngle: -0.006, duration: 0.24, shortestUnitArc: true)
-                sprite.run(.repeatForever(.sequence([tilt, returnTilt])), withKey: typingTiltKey)
+        // Never shake the whole illustration. Only the transparent paw layer
+        // animates; the background, laptop, desk and lamp stay anchored.
+        sprite.removeAction(forKey: typingMotionKey)
+        sprite.removeAction(forKey: typingTiltKey)
+        sprite.position = .zero
+        sprite.yScale = 1
+        sprite.zRotation = 0
+        let shouldType = clip.playback == .loop && isWorking
+        typingPaws.isHidden = !shouldType
+        if shouldType {
+            if typingPaws.action(forKey: pawsActionKey) == nil {
+                let frames = CompanionTypingFrames.textures
+                typingPaws.texture = frames[0]
+                typingPaws.run(.repeatForever(.animate(with: frames,
+                    timePerFrame: 0.06, resize: false, restore: false)),
+                    withKey: pawsActionKey)
             }
         } else {
-            sprite.removeAction(forKey: typingMotionKey)
-            sprite.removeAction(forKey: typingTiltKey)
-            sprite.position = .zero
-            sprite.yScale = 1
-            sprite.zRotation = 0
+            typingPaws.removeAction(forKey: pawsActionKey)
         }
 
         switch clip.playback {
@@ -149,6 +146,8 @@ final class CompanionSpriteScene: SKScene {
         // Preserve animated transforms across layout and timer updates.
         sprite.isHidden = false
         sprite.alpha = 1
+        typingPaws.size = CGSize(width: side * 136 / 768, height: side * 76 / 768)
+        typingPaws.position = CGPoint(x: side * 0.105, y: -side * 0.20)
         // Coordinates are in the same normalized 768-point design space as the art.
         steam.position = CGPoint(x: side * 0.23, y: side * 0.065)
         steam.setScale(side / 768)
