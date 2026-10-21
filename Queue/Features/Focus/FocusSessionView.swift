@@ -18,7 +18,7 @@ struct FocusSessionView: View {
 
     var body: some View {
         ZStack {
-            QueueColors.charcoal.ignoresSafeArea()
+            QueueColors.forestDeep.ignoresSafeArea()
 
             if let completionOutcome {
                 CompletionCelebrationView(
