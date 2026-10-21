@@ -18,7 +18,6 @@ struct RootView: View {
             }
         }
         .background(QueueColors.background.ignoresSafeArea())
-        .preferredColorScheme(nil)
         .task {
             await services.configure(modelContext: modelContext)
             ensurePreferences()
