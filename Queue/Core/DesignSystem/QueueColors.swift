@@ -45,4 +45,19 @@ enum QueueColors {
                 : UIColor(QueueColors.sage).withAlphaComponent(0.45)
         })
     }
+
+    /// Alternating flush shades for the Weekstack-inspired queue stack.
+    static func stackBlock(index: Int) -> Color {
+        Color(uiColor: UIColor { traits in
+            let even = index.isMultiple(of: 2)
+            if traits.userInterfaceStyle == .dark {
+                return even
+                    ? UIColor(QueueColors.charcoalElevated)
+                    : UIColor(red: 0.16, green: 0.17, blue: 0.18, alpha: 1)
+            }
+            return even
+                ? UIColor(QueueColors.sage).withAlphaComponent(0.55)
+                : UIColor(QueueColors.sage).withAlphaComponent(0.32)
+        })
+    }
 }
