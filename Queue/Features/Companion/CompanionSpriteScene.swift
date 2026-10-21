@@ -89,7 +89,7 @@ final class CompanionSpriteScene: SKScene {
         typingPaws.isHidden = !shouldType
         if shouldType {
             if typingPaws.action(forKey: pawsActionKey) == nil {
-                let frames = CompanionTypingFrames.textures
+                let frames = Self.typingAtlasFrames
                 typingPaws.texture = frames[0]
                 typingPaws.run(.repeatForever(.animate(with: frames,
                     timePerFrame: 0.06, resize: false, restore: false)),
@@ -178,6 +178,12 @@ final class CompanionSpriteScene: SKScene {
             wisp.run(SKAction.sequence([delay, SKAction.repeatForever(cycle)]))
         }
     }
+
+    private static let typingAtlasFrames: [SKTexture] = {
+        let atlas = SKTextureAtlas(named: "Typing")
+        let frames = CompanionTextureStore.orderedTextures(from: atlas)
+        return frames.count == 20 ? frames : CompanionTypingFrames.textures
+    }()
 
     private static let animationKey = "companion.atlas"
 }
