@@ -59,6 +59,16 @@ def main():
         sheet.paste(tile, ((i % cols) * 280, (i // cols) * 300))
     sheet.save(args.output / "contact_sheet.png")
 
+    # Render the actual atlas as a playable loop at approximate in-app size.
+    preview = []
+    for image in flattened:
+        thumb = image.copy()
+        thumb.thumbnail((280, 280))
+        preview.append(thumb)
+    preview[0].save(args.output / "current_loop.gif", save_all=True,
+                    append_images=preview[1:], duration=170, loop=0,
+                    optimize=False, disposal=2)
+
     heat = Image.new("L", (width, height))
     for first, second in zip(flattened, flattened[1:] + flattened[:1]):
         diff = ImageChops.difference(first, second).convert("L")
@@ -81,7 +91,7 @@ def main():
     }
     (args.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))
-    print(f"Saved {args.output / 'contact_sheet.png'} and difference_heatmap.png")
+    print(f"Saved {args.output / 'contact_sheet.png'} difference_heatmap.png, and current_loop.gif")
 
 
 if __name__ == "__main__":
