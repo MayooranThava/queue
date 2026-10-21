@@ -70,7 +70,7 @@ final class CompanionSpriteScene: SKScene {
         appliedClip = clip
         appliedGeneration = generation
 
-        let isWorking = clip.atlas == .working || clip.atlas == .deepFocus
+        let isWorking = clip.atlas == .working || clip.atlas == .deepFocus || clip.atlas == .typing
         steam.isHidden = clip.playback == .staticFrame || !isWorking
         // Safety rollback: disable runtime warp deformation after a task-start
         // crash report. Keep the existing texture-atlas animation and steam.

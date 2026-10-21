@@ -49,6 +49,7 @@
 		061637AE0ABB4B20B36F121D /* DeepFocus.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CFE87CA2D2EB4E0E992A7848 /* DeepFocus.atlas */; };
 		495584E146A540EE95508DFE /* Expired.atlas in Resources */ = {isa = PBXBuildFile; fileRef = 52942B57E66F4C9396DC3475 /* Expired.atlas */; };
 		C6C5FFE97DA54F60BBCE72B0 /* Working.atlas in Resources */ = {isa = PBXBuildFile; fileRef = 7408517EFF4848A4A8A4367E /* Working.atlas */; };
+		A9C43A8F4E9A4102B7700F11 /* Typing.atlas in Resources */ = {isa = PBXBuildFile; fileRef = A9C43A8F4E9A4102B7700F12 /* Typing.atlas */; };
 		D42E396D023A414F9E33E590 /* QueueCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9A50AB3A3FE84FC2A87514AB /* QueueCore */; };
 		6C419978A5484C7BAF3836CA /* QueueCore in Frameworks */ = {isa = PBXBuildFile; productRef = A8CB8FA4C3A342349DBBC36F /* QueueCore */; };
 		636A337AD3904F6CABCA6A90 /* QueueCore in Frameworks */ = {isa = PBXBuildFile; productRef = 0D35106405504EA8A042E0DD /* QueueCore */; };
@@ -61,6 +62,7 @@
 		CFE87CA2D2EB4E0E992A7848 /* DeepFocus.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DeepFocus.atlas; path = Queue/Resources/Atlases/DeepFocus.atlas; sourceTree = SOURCE_ROOT; };
 		52942B57E66F4C9396DC3475 /* Expired.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Expired.atlas; path = Queue/Resources/Atlases/Expired.atlas; sourceTree = SOURCE_ROOT; };
 		7408517EFF4848A4A8A4367E /* Working.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Working.atlas; path = Queue/Resources/Atlases/Working.atlas; sourceTree = SOURCE_ROOT; };
+		A9C43A8F4E9A4102B7700F12 /* Typing.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Typing.atlas; path = Queue/Resources/Atlases/Typing.atlas; sourceTree = SOURCE_ROOT; };
 		1D4B66B4881F46B1ABC815B9 /* Queue.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Queue/Resources/Queue.entitlements; sourceTree = SOURCE_ROOT; };
 		85D88E289E4241D69023C03F /* QueueWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QueueWidgets/QueueWidgets.entitlements; sourceTree = SOURCE_ROOT; };
 		7B5B8CF88D5743F199923297 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = QueueWidgets/Info.plist; sourceTree = SOURCE_ROOT; };
@@ -114,7 +116,7 @@
 		};
 		08FAD654C4B6475E89DBFD3A /* Atlases */ = {
 			isa = PBXGroup;
-			children = (D6F29185DA434A4A9F5DD92D, CFE87CA2D2EB4E0E992A7848, 52942B57E66F4C9396DC3475, 7408517EFF4848A4A8A4367E);
+			children = (D6F29185DA434A4A9F5DD92D, CFE87CA2D2EB4E0E992A7848, 52942B57E66F4C9396DC3475, 7408517EFF4848A4A8A4367E, A9C43A8F4E9A4102B7700F12);
 			name = Atlases;
 			sourceTree = "<group>";
 		};
@@ -169,7 +171,7 @@
 		29B2B6AA64BC4261BD0AC944 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (97836FF17D1348EBA9539FB1, 6766BA7573F24F52ABEB6E73, 061637AE0ABB4B20B36F121D, 495584E146A540EE95508DFE, C6C5FFE97DA54F60BBCE72B0);
+			files = (97836FF17D1348EBA9539FB1, 6766BA7573F24F52ABEB6E73, 061637AE0ABB4B20B36F121D, 495584E146A540EE95508DFE, C6C5FFE97DA54F60BBCE72B0, A9C43A8F4E9A4102B7700F11);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		1A9797D92AE049FD94466268 /* Frameworks */ = {

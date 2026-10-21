@@ -4,6 +4,7 @@ import UIKit
 /// Atlas identifiers matching asset-catalog sprite atlases / `*.atlas` folders.
 enum CompanionAtlasID: String, CaseIterable, Sendable {
     case working = "Working"
+    case typing = "Typing"
     case deepFocus = "DeepFocus"
     case completed = "Completed"
     case expired = "Expired"
@@ -11,13 +12,14 @@ enum CompanionAtlasID: String, CaseIterable, Sendable {
     var framePrefix: String {
         switch self {
         case .working: return "working"
+        case .typing: return "typing"
         case .deepFocus: return "deepfocus"
         case .completed: return "completed"
         case .expired: return "expired"
         }
     }
 
-    var expectedFrameCount: Int { 12 }
+    var expectedFrameCount: Int { self == .typing ? 20 : 12 }
 }
 
 /// Loads and preloads companion sprite frames once. Texture order follows filename sort.
@@ -168,9 +170,9 @@ struct CompanionAnimationClip: Equatable {
 
         switch state {
         case .working, .preparing:
-            return CompanionAnimationClip(atlas: .working, playback: .loop, timePerFrame: 2.6 / 12.0)
+            return CompanionAnimationClip(atlas: .typing, playback: .loop, timePerFrame: 0.075)
         case .deepFocus:
-            return CompanionAnimationClip(atlas: .deepFocus, playback: .loop, timePerFrame: 3.5 / 12.0)
+            return CompanionAnimationClip(atlas: .typing, playback: .loop, timePerFrame: 0.075)
         case .paused, .idle:
             return CompanionAnimationClip(atlas: .working, playback: .staticFrame, timePerFrame: 0)
         case .completed, .celebrating, .levelUp:
