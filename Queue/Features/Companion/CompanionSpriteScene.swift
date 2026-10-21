@@ -85,19 +85,11 @@ final class CompanionSpriteScene: SKScene {
         sprite.position = .zero
         sprite.yScale = 1
         sprite.zRotation = 0
-        let shouldType = clip.playback == .loop && isWorking
-        typingPaws.isHidden = !shouldType
-        if shouldType {
-            if typingPaws.action(forKey: pawsActionKey) == nil {
-                let frames = Self.typingAtlasFrames
-                typingPaws.texture = frames[0]
-                typingPaws.run(.repeatForever(.animate(with: frames,
-                    timePerFrame: 0.06, resize: false, restore: false)),
-                    withKey: pawsActionKey)
-            }
-        } else {
-            typingPaws.removeAction(forKey: pawsActionKey)
-        }
+        // Production safety: disable the prototype paw overlay. Its generated
+        // ovals are not registered to the illustrated character's hands and
+        // appear as floating dots on the desk. Keep authored atlas playback.
+        typingPaws.isHidden = true
+        typingPaws.removeAction(forKey: pawsActionKey)
 
         switch clip.playback {
         case .staticFrame:
