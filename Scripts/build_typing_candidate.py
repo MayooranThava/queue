@@ -32,8 +32,8 @@ def main():
     # against Working/working_000.png (768 x 768 transparent source).
     # The masks only select *existing* paw pixels for movement.
     regions = [
-        (378, 437, 414, 492), # left-side paw, partially behind laptop
-        (412, 439, 481, 508), # right-side paw over keyboard
+        (369, 431, 419, 498), # left-side paw, partially behind laptop
+        (405, 433, 493, 513), # right-side paw over keyboard
     ]
     masks = [mask_for_ellipse(original.size, b, feather=3) for b in regions]
     base = np.array(original)
@@ -58,10 +58,11 @@ def main():
             wave = math.sin(phase + hand * math.pi * 0.85)
             # Keep subpixel precision: integer rounding caused consecutive
             # frames to collapse to identical PNGs in the first CI run.
-            dx = 1.5 * math.sin(phase * 2 + hand)
-            dy = 5.0 * max(0, wave) - 2.0 * max(0, -wave)
-            # Tiny continuous arc ensures no duplicate adjacent poses.
-            dy += 0.45 * math.sin(phase + hand * 0.6)
+            # Increase the key-press arc. The original 5px peak was
+            # imperceptible when the 768px illustration was shown at ~300px.
+            dx = 3.0 * math.sin(phase * 2 + hand)
+            dy = 11.0 * max(0, wave) - 4.0 * max(0, -wave)
+            dy += 0.65 * math.sin(phase + hand * 0.6)
             moving = original.copy()
             # Preserve the source transparency; the ellipse is only a region mask.
             moving.putalpha(ImageChops.multiply(original.getchannel("A"), mask))
