@@ -56,13 +56,23 @@ def main():
         for hand, mask in enumerate(masks):
             # Opposite-hand stagger: a clear but restrained downward key press.
             wave = math.sin(phase + hand * math.pi * 0.85)
-            dx = round(1.5 * math.sin(phase * 2 + hand))
-            dy = round(5.0 * max(0, wave) - 2.0 * max(0, -wave))
+            # Keep subpixel precision: integer rounding caused consecutive
+            # frames to collapse to identical PNGs in the first CI run.
+            dx = 1.5 * math.sin(phase * 2 + hand)
+            dy = 5.0 * max(0, wave) - 2.0 * max(0, -wave)
+            # Tiny continuous arc ensures no duplicate adjacent poses.
+            dy += 0.45 * math.sin(phase + hand * 0.6)
             moving = original.copy()
             # Preserve the source transparency; the ellipse is only a region mask.
             moving.putalpha(ImageChops.multiply(original.getchannel("A"), mask))
-            shifted = Image.new("RGBA", original.size)
-            shifted.paste(moving, (dx, dy))
+            # PIL affine transform maps destination -> source. Bilinear
+            # resampling produces distinct, smoothly interpolated positions.
+            shifted = moving.transform(
+                original.size, Image.Transform.AFFINE,
+                (1, 0, -dx, 0, 1, -dy),
+                resample=Image.Resampling.BILINEAR,
+                fillcolor=(0, 0, 0, 0),
+            )
             frame = Image.alpha_composite(frame, shifted)
         dest = OUTPUT / f"typing_{index:03d}.png"
         frame.save(dest, optimize=True)
