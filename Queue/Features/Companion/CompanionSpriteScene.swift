@@ -10,6 +10,7 @@ final class CompanionSpriteScene: SKScene {
     // A subtle secondary motion layer, independent of the authored typing frames.
     private let steam = SKNode()
     private let typingMotionKey = "companion.typingMotion"
+    private let typingTiltKey = "companion.typingTilt"
 
     override init(size: CGSize) {
         super.init(size: size)
@@ -70,20 +71,35 @@ final class CompanionSpriteScene: SKScene {
         appliedClip = clip
         appliedGeneration = generation
 
-        layoutSprite()
         let isWorking = clip.atlas == .working || clip.atlas == .deepFocus
         steam.isHidden = clip.playback == .staticFrame || !isWorking
-        // Add subtle sub-frame motion without altering atlas frame ordering or artwork.
-        // Keep the desk/laptop anchored; only the sprite's tiny vertical movement changes.
-        if !sameClip || sprite.action(forKey: typingMotionKey) == nil {
+        // Keep the existing authored atlas playing while adding a visible, smooth
+        // typing cadence. Do not restart these actions on SwiftUI timer ticks.
+        if clip.playback == .loop && isWorking {
+            if sprite.action(forKey: typingMotionKey) == nil {
+                let down = SKAction.group([
+                    SKAction.moveTo(y: -size.height * 0.006, duration: 0.16),
+                    SKAction.scaleY(to: 0.991, duration: 0.16)
+                ])
+                let up = SKAction.group([
+                    SKAction.moveTo(y: 0, duration: 0.20),
+                    SKAction.scaleY(to: 1, duration: 0.20)
+                ])
+                down.timingMode = .easeInEaseOut
+                up.timingMode = .easeInEaseOut
+                sprite.run(.repeatForever(.sequence([down, up, .wait(forDuration: 0.12)])), withKey: typingMotionKey)
+            }
+            if sprite.action(forKey: typingTiltKey) == nil {
+                let tilt = SKAction.rotate(toAngle: 0.006, duration: 0.22, shortestUnitArc: true)
+                let returnTilt = SKAction.rotate(toAngle: -0.006, duration: 0.24, shortestUnitArc: true)
+                sprite.run(.repeatForever(.sequence([tilt, returnTilt])), withKey: typingTiltKey)
+            }
+        } else {
             sprite.removeAction(forKey: typingMotionKey)
+            sprite.removeAction(forKey: typingTiltKey)
             sprite.position = .zero
-        }
-        if clip.playback == .loop && isWorking && sprite.action(forKey: typingMotionKey) == nil {
-            let lift = SKAction.moveBy(x: 0, y: size.height * 0.002, duration: 0.14)
-            lift.timingMode = .easeInEaseOut
-            let settle = lift.reversed()
-            sprite.run(SKAction.repeatForever(SKAction.sequence([lift, settle])), withKey: typingMotionKey)
+            sprite.yScale = 1
+            sprite.zRotation = 0
         }
 
         switch clip.playback {
@@ -130,9 +146,7 @@ final class CompanionSpriteScene: SKScene {
         guard side > 0 else { return }
         // Identical size / scale / anchor for every frame — prevents desk / laptop drift.
         sprite.size = CGSize(width: side, height: side)
-        sprite.position = .zero
-        sprite.xScale = 1
-        sprite.yScale = 1
+        // Preserve animated transforms across layout and timer updates.
         sprite.isHidden = false
         sprite.alpha = 1
         // Coordinates are in the same normalized 768-point design space as the art.
