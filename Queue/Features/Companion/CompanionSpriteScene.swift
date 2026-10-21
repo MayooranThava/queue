@@ -79,7 +79,7 @@ final class CompanionSpriteScene: SKScene {
         if shouldType {
             if sprite.action(forKey: Self.typingWarpKey) == nil {
                 let keyframes: [SKAction] = Self.typingWarpFrames.compactMap {
-                    SKAction.warp(to: $0, duration: 0.055)
+                    SKAction.warp(to: $0, duration: 0.060)
                 }
                 sprite.run(.repeatForever(.sequence(keyframes)),
                            withKey: Self.typingWarpKey)
@@ -175,8 +175,8 @@ final class CompanionSpriteScene: SKScene {
     /// keeping the laptop, desk, mug, plant and lamp locked in place.
     /// Source image is 768x768; SpriteKit grid coordinates have Y pointing up.
     private static func makeTypingWarpFrames() -> [SKWarpGeometryGrid] {
-        let columns = 32
-        let rows = 32
+        let columns = 64
+        let rows = 64
         var original: [vector_float2] = []
         for row in 0...rows {
             for column in 0...columns {
@@ -195,15 +195,15 @@ final class CompanionSpriteScene: SKScene {
                     (0.574, 0.382, Float.pi)
                 ]
                 for (cx, cy, offset) in hands {
-                    let dx = (point.x - cx) / 0.061
-                    let dy = (point.y - cy) / 0.047
+                    let dx = (point.x - cx) / 0.055
+                    let dy = (point.y - cy) / 0.050
                     let radiusSquared = dx * dx + dy * dy
                     // Compact support: exactly zero outside each paw.
                     if radiusSquared < 1 {
                         let influence = pow(1 - radiusSquared, 2)
                         let press = (1 - cos(phase * 2 + offset)) / 2
-                        displacement.x += influence * sin(phase + offset) * 0.004
-                        displacement.y -= influence * press * 0.010
+                        displacement.x += influence * sin(phase + offset) * 0.009
+                        displacement.y -= influence * press * 0.025
                     }
                 }
                 return point + displacement
