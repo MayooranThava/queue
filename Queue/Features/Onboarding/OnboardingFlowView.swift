@@ -10,6 +10,8 @@ struct OnboardingFlowView: View {
     @State private var step = 0
     @State private var selectedProfile: MotivationProfile = .balanced
     @State private var firstTaskTitle = ""
+    @State private var firstTaskMinutes = 25
+    @State private var firstTaskDifficulty: TaskDifficulty = .medium
 
     var body: some View {
         NavigationStack {
@@ -138,19 +140,72 @@ struct OnboardingFlowView: View {
     }
 
     private var firstTask: some View {
-        VStack(alignment: .leading, spacing: QueueSpacing.lg) {
-            Spacer()
-            Text("Your first task")
-                .font(QueueTypography.title(32))
-            TextField("e.g. Outline the intro paragraph", text: $firstTaskTitle)
-                .textFieldStyle(QueueTextFieldStyle())
-                .submitLabel(.done)
-            Text("Start tiny. Momentum beats perfection.")
-                .font(QueueTypography.caption())
-                .foregroundStyle(QueueColors.secondaryText)
-            Spacer()
+        ScrollView {
+            VStack(alignment: .leading, spacing: QueueSpacing.lg) {
+                Spacer(minLength: QueueSpacing.xl)
+                Text("Your first task")
+                    .font(QueueTypography.title(32))
+                    .foregroundStyle(QueueColors.primaryText)
+
+                TextField("e.g. Outline the intro paragraph", text: $firstTaskTitle)
+                    .textFieldStyle(QueueTextFieldStyle())
+                    .submitLabel(.done)
+
+                VStack(alignment: .leading, spacing: QueueSpacing.sm) {
+                    Text("Time")
+                        .font(QueueTypography.caption())
+                        .foregroundStyle(QueueColors.secondaryText)
+                    Stepper(value: $firstTaskMinutes, in: 5...180, step: 5) {
+                        Text("\(firstTaskMinutes) minutes")
+                            .font(QueueTypography.headline(17))
+                            .foregroundStyle(QueueColors.primaryText)
+                    }
+                    .padding(QueueSpacing.md)
+                    .background(
+                        RoundedRectangle(cornerRadius: QueueSpacing.cornerMinimal, style: .continuous)
+                            .fill(QueueColors.secondarySurface.opacity(0.55))
+                    )
+                    .accessibilityLabel("Estimated duration, \(firstTaskMinutes) minutes")
+                }
+
+                VStack(alignment: .leading, spacing: QueueSpacing.sm) {
+                    Text("Difficulty")
+                        .font(QueueTypography.caption())
+                        .foregroundStyle(QueueColors.secondaryText)
+                    HStack(spacing: QueueSpacing.xs) {
+                        ForEach(TaskDifficulty.allCases, id: \.self) { value in
+                            Button {
+                                firstTaskDifficulty = value
+                            } label: {
+                                Text(value.displayName)
+                                    .font(QueueTypography.caption())
+                                    .foregroundStyle(QueueColors.primaryText)
+                                    .frame(maxWidth: .infinity, minHeight: QueueSpacing.minTouch)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: QueueSpacing.cornerMinimal, style: .continuous)
+                                            .fill(
+                                                firstTaskDifficulty == value
+                                                    ? QueueColors.secondarySurface
+                                                    : QueueColors.secondarySurface.opacity(0.35)
+                                            )
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityAddTraits(firstTaskDifficulty == value ? .isSelected : [])
+                        }
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityHint("Affects XP reward, not the timer length")
+                }
+
+                Text("Start tiny. Momentum beats perfection.")
+                    .font(QueueTypography.caption())
+                    .foregroundStyle(QueueColors.secondaryText)
+
+                Spacer(minLength: QueueSpacing.xl)
+            }
+            .padding(QueueSpacing.xl)
         }
-        .padding(QueueSpacing.xl)
     }
 
     private var bottomBar: some View {
@@ -200,7 +255,8 @@ struct OnboardingFlowView: View {
         _ = try? await services.taskRepository?.create(
             title: title,
             notes: nil,
-            estimatedDuration: 25 * 60
+            estimatedDuration: TimeInterval(firstTaskMinutes * 60),
+            difficulty: firstTaskDifficulty
         )
     }
 

@@ -5,6 +5,7 @@ import QueueCore
 struct QueueHomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var services: AppServices
     @Query(sort: [
         SortDescriptor(\TaskEntity.queuePosition),
@@ -26,9 +27,6 @@ struct QueueHomeView: View {
     }
 
     private var headTask: QueueTask? { activeTasks.first }
-    private var upcoming: [QueueTask] {
-        Array(activeTasks.dropFirst())
-    }
 
     private var projectedStarts: [UUID: Date] {
         QueueSchedule.projectedStarts(orderedActiveTasks: activeTasks, from: Date())
@@ -49,7 +47,18 @@ struct QueueHomeView: View {
         .navigationTitle("Queue")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if activeTasks.count > 1 {
+                    Toggle(isOn: $showPlannedStartTimes) {
+                        Image(systemName: showPlannedStartTimes ? "clock" : "timer")
+                    }
+                    .toggleStyle(.button)
+                    .accessibilityLabel(
+                        showPlannedStartTimes
+                            ? "Showing start times. Switch to durations."
+                            : "Showing durations. Switch to start times."
+                    )
+                }
                 Button {
                     showAddTask = true
                 } label: {
@@ -105,7 +114,6 @@ struct QueueHomeView: View {
     private func openFocusFromDeepLink() {
         defer { services.pendingOpenFocus = false }
         guard let headTask else { return }
-        // Prefer continuing an active session; otherwise start the head of the queue.
         focusTask = headTask
     }
 
@@ -134,75 +142,67 @@ struct QueueHomeView: View {
     }
 
     private var populatedState: some View {
-        List {
-            if let headTask {
-                Section {
-                    ActiveTaskHero(
-                        task: headTask,
-                        focusSnapshot: matchingSnapshot(for: headTask),
-                        onEdit: { editingTask = headTask },
-                        onFocus: { focusTask = headTask }
-                    )
-                    .listRowInsets(EdgeInsets(
-                        top: QueueSpacing.md,
-                        leading: QueueSpacing.md,
-                        bottom: QueueSpacing.md,
-                        trailing: QueueSpacing.md
-                    ))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                } header: {
-                    Text("Now")
-                        .font(QueueTypography.caption())
-                        .foregroundStyle(QueueColors.secondaryText)
-                        .textCase(nil)
-                }
-            }
-
-            if !upcoming.isEmpty {
-                Section {
-                    ForEach(upcoming) { task in
-                        UpcomingTaskRow(
-                            task: task,
-                            showStartTime: showPlannedStartTimes,
-                            startTime: projectedStarts[task.id]
-                        )
-                        .contentShape(Rectangle())
-                        .onTapGesture { editingTask = task }
-                        .listRowInsets(EdgeInsets(
-                            top: QueueSpacing.sm,
-                            leading: QueueSpacing.md,
-                            bottom: QueueSpacing.sm,
-                            trailing: QueueSpacing.md
-                        ))
-                        .listRowBackground(QueueColors.secondarySurface.opacity(0.35))
-                    }
-                    .onMove(perform: moveUpcoming)
-                } header: {
-                    HStack {
-                        Text("Up next")
-                            .font(QueueTypography.caption())
-                            .foregroundStyle(QueueColors.secondaryText)
-                        Spacer()
-                        Toggle(isOn: $showPlannedStartTimes) {
-                            Text(showPlannedStartTimes ? "Start times" : "Durations")
-                                .font(QueueTypography.caption())
-                                .foregroundStyle(QueueColors.sageDeep)
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(Array(activeTasks.enumerated()), id: \.element.id) { index, task in
+                    let isHead = index == 0
+                    Group {
+                        if isHead {
+                            ActiveTaskStackBlock(
+                                task: task,
+                                focusSnapshot: matchingSnapshot(for: task),
+                                blockIndex: index,
+                                onEdit: { editingTask = task },
+                                onFocus: { focusTask = task }
+                            )
+                        } else {
+                            UpcomingTaskStackBlock(
+                                task: task,
+                                showStartTime: showPlannedStartTimes,
+                                startTime: projectedStarts[task.id],
+                                blockIndex: index,
+                                canMoveUp: index > 1,
+                                canMoveDown: index < activeTasks.count - 1,
+                                onTap: { editingTask = task },
+                                onMoveUp: { moveTask(id: task.id, direction: -1) },
+                                onMoveDown: { moveTask(id: task.id, direction: 1) }
+                            )
                         }
-                        .toggleStyle(.button)
-                        .accessibilityLabel(
-                            showPlannedStartTimes
-                                ? "Showing start times. Switch to durations."
-                                : "Showing durations. Switch to start times."
-                        )
                     }
-                    .textCase(nil)
+                    .id(task.id)
+                    .frame(maxWidth: .infinity, minHeight: isHead ? 300 : 168, alignment: .topLeading)
+                    .scrollTransition(
+                        topLeading: reduceMotion ? .identity : .animated(QueueMotion.stackScroll),
+                        bottomTrailing: reduceMotion ? .identity : .animated(QueueMotion.stackScroll)
+                    ) { content, phase in
+                        content
+                            .opacity(stackOpacity(for: phase))
+                            .scaleEffect(x: 1, y: stackScale(for: phase), anchor: .top)
+                            .offset(y: stackOffset(for: phase))
+                    }
                 }
             }
+            .scrollTargetLayout()
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .environment(\.editMode, .constant(.active))
+        .scrollIndicators(.hidden)
+        .scrollTargetBehavior(.viewAligned)
+        .background(QueueColors.background)
+    }
+
+    private func stackOpacity(for phase: ScrollTransitionPhase) -> Double {
+        if reduceMotion || phase.isIdentity { return 1 }
+        return 0.58 + (0.42 * (1 - abs(phase.value)))
+    }
+
+    private func stackScale(for phase: ScrollTransitionPhase) -> CGFloat {
+        if reduceMotion || phase.isIdentity { return 1 }
+        // Compress toward the top edge so blocks read as a physical stack while scrolling.
+        return 0.88 + (0.12 * (1 - abs(phase.value)))
+    }
+
+    private func stackOffset(for phase: ScrollTransitionPhase) -> CGFloat {
+        if reduceMotion || phase.isIdentity { return 0 }
+        return phase.value * -22
     }
 
     private func matchingSnapshot(for task: QueueTask) -> FocusWidgetSnapshot? {
@@ -258,18 +258,16 @@ struct QueueHomeView: View {
         }
     }
 
-    private func moveUpcoming(from source: IndexSet, to destination: Int) {
-        var ordered = upcoming
-        ordered.move(fromOffsets: source, toOffset: destination)
-        var full = activeTasks
-        if let head = headTask {
-            full = [head] + ordered
-        } else {
-            full = ordered
-        }
+    /// Moves an upcoming task within the active queue (head stays at index 0).
+    private func moveTask(id: UUID, direction: Int) {
+        guard let index = activeTasks.firstIndex(where: { $0.id == id }), index > 0 else { return }
+        let destination = index + direction
+        guard destination >= 1, destination < activeTasks.count else { return }
+        var ordered = activeTasks
+        ordered.swapAt(index, destination)
         Task {
             do {
-                try await services.taskRepository?.reorder(orderedIDs: full.map(\.id))
+                try await services.taskRepository?.reorder(orderedIDs: ordered.map(\.id))
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -288,9 +286,12 @@ struct QueueHomeView: View {
     }
 }
 
-private struct ActiveTaskHero: View {
+// MARK: - Stack blocks
+
+private struct ActiveTaskStackBlock: View {
     let task: QueueTask
     let focusSnapshot: FocusWidgetSnapshot?
+    let blockIndex: Int
     var onEdit: () -> Void
     var onFocus: () -> Void
 
@@ -317,10 +318,15 @@ private struct ActiveTaskHero: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: QueueSpacing.md) {
+            Text("NOW")
+                .font(QueueTypography.caption())
+                .foregroundStyle(QueueColors.secondaryText)
+                .tracking(1.2)
+
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: QueueSpacing.xs) {
                     Text(task.title)
-                        .font(QueueTypography.title(22))
+                        .font(QueueTypography.title(28))
                         .foregroundStyle(QueueColors.primaryText)
                         .lineLimit(3)
                         .minimumScaleFactor(0.78)
@@ -353,6 +359,8 @@ private struct ActiveTaskHero: View {
                     .foregroundStyle(QueueColors.secondaryText)
             }
 
+            Spacer(minLength: 0)
+
             Button(isAlreadyFocusing ? "Continue focus" : "Start focus", action: onFocus)
                 .buttonStyle(QueuePrimaryButtonStyle())
                 .accessibilityHint(
@@ -366,12 +374,11 @@ private struct ActiveTaskHero: View {
                 .foregroundStyle(QueueColors.sageDeep)
                 .accessibilityHint("Opens the editor for the active task")
         }
-        .padding(QueueSpacing.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: QueueSpacing.cornerSoft, style: .continuous)
-                .fill(QueueColors.secondarySurface)
-        )
+        .padding(.horizontal, QueueSpacing.lg)
+        .padding(.vertical, QueueSpacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(QueueColors.stackBlock(index: blockIndex))
+        .accessibilityElement(children: .contain)
     }
 
     private var companionBadge: some View {
@@ -443,10 +450,16 @@ private struct ActiveTaskHero: View {
     }
 }
 
-private struct UpcomingTaskRow: View {
+private struct UpcomingTaskStackBlock: View {
     let task: QueueTask
     let showStartTime: Bool
     let startTime: Date?
+    let blockIndex: Int
+    let canMoveUp: Bool
+    let canMoveDown: Bool
+    var onTap: () -> Void
+    var onMoveUp: () -> Void
+    var onMoveDown: () -> Void
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -455,31 +468,61 @@ private struct UpcomingTaskRow: View {
     }()
 
     var body: some View {
-        HStack(spacing: QueueSpacing.md) {
-            Image(systemName: "line.3.horizontal")
-                .foregroundStyle(QueueColors.secondaryText)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(task.title)
-                    .font(QueueTypography.headline(17))
-                    .foregroundStyle(QueueColors.primaryText)
-                Text(subtitle)
-                    .font(QueueTypography.caption())
-                    .foregroundStyle(QueueColors.secondaryText)
+        Button(action: onTap) {
+            HStack(alignment: .top, spacing: QueueSpacing.md) {
+                VStack(alignment: .leading, spacing: QueueSpacing.xs) {
+                    Text(task.title.uppercased())
+                        .font(QueueTypography.title(26))
+                        .foregroundStyle(QueueColors.primaryText)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.8)
+                        .multilineTextAlignment(.leading)
+
+                    Text(subtitle)
+                        .font(QueueTypography.body(15))
+                        .foregroundStyle(QueueColors.secondaryText)
+                }
+                Spacer(minLength: QueueSpacing.sm)
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(QueueColors.secondaryText.opacity(0.7))
+                    .padding(.top, 6)
+                    .accessibilityHidden(true)
             }
-            Spacer()
+            .padding(.horizontal, QueueSpacing.lg)
+            .padding(.vertical, QueueSpacing.xl)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(QueueColors.stackBlock(index: blockIndex))
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, QueueSpacing.xs)
+        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(task.title), \(subtitle)")
-        .accessibilityHint("Drag to reorder")
+        .accessibilityHint("Double tap to edit. Use the context menu to reorder.")
+        .contextMenu {
+            Button("Edit") { onTap() }
+            if canMoveUp {
+                Button {
+                    onMoveUp()
+                } label: {
+                    Label("Move up", systemImage: "arrow.up")
+                }
+            }
+            if canMoveDown {
+                Button {
+                    onMoveDown()
+                } label: {
+                    Label("Move down", systemImage: "arrow.down")
+                }
+            }
+        }
     }
 
     private var subtitle: String {
         if showStartTime, let startTime {
             let prefix = task.plannedStartAt != nil ? "Starts" : "About"
-            return "\(prefix) \(Self.timeFormatter.string(from: startTime))"
+            return "\(prefix) \(Self.timeFormatter.string(from: startTime)) · \(task.difficulty.displayName)"
         }
-        return "\(max(1, Int(task.estimatedDuration / 60))) min"
+        return "\(max(1, Int(task.estimatedDuration / 60))) min · \(task.difficulty.displayName)"
     }
 }

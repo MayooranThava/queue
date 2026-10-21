@@ -8,6 +8,8 @@ enum QueueMotion {
     static let xpCountDuration: TimeInterval = 0.8
     static let levelUpDuration: TimeInterval = 2.0
     static let queueAdvance: Animation = .easeInOut(duration: 0.45)
+    /// Soft scale/fade as stack blocks enter and leave the viewport.
+    static let stackScroll: Animation = .easeInOut(duration: 0.4)
 
     static func prefer(_ animation: Animation?, reduceMotion: Bool) -> Animation? {
         reduceMotion ? nil : animation
