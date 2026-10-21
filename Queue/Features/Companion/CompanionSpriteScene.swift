@@ -9,10 +9,6 @@ final class CompanionSpriteScene: SKScene {
     private var suspended = false
     // A subtle secondary motion layer, independent of the authored typing frames.
     private let steam = SKNode()
-    private let typingMotionKey = "companion.typingMotion"
-    private let typingTiltKey = "companion.typingTilt"
-    private let typingPaws = SKSpriteNode()
-    private let pawsActionKey = "companion.paws.frames"
 
     override init(size: CGSize) {
         super.init(size: size)
@@ -27,9 +23,6 @@ final class CompanionSpriteScene: SKScene {
         sprite.color = .clear
         sprite.colorBlendFactor = 0
         addChild(sprite)
-        typingPaws.zPosition = 2
-        typingPaws.isHidden = true
-        addChild(typingPaws)
         steam.zPosition = 1
         addChild(steam)
         configureSteam()
@@ -80,16 +73,9 @@ final class CompanionSpriteScene: SKScene {
         steam.isHidden = clip.playback == .staticFrame || !isWorking
         // Never shake the whole illustration. Only the transparent paw layer
         // animates; the background, laptop, desk and lamp stay anchored.
-        sprite.removeAction(forKey: typingMotionKey)
-        sprite.removeAction(forKey: typingTiltKey)
         sprite.position = .zero
         sprite.yScale = 1
         sprite.zRotation = 0
-        // Production safety: disable the prototype paw overlay. Its generated
-        // ovals are not registered to the illustrated character's hands and
-        // appear as floating dots on the desk. Keep authored atlas playback.
-        typingPaws.isHidden = true
-        typingPaws.removeAction(forKey: pawsActionKey)
 
         switch clip.playback {
         case .staticFrame:
@@ -138,10 +124,11 @@ final class CompanionSpriteScene: SKScene {
         // Preserve animated transforms across layout and timer updates.
         sprite.isHidden = false
         sprite.alpha = 1
-        typingPaws.size = CGSize(width: side * 136 / 768, height: side * 76 / 768)
-        typingPaws.position = CGPoint(x: side * 0.105, y: -side * 0.20)
         // Coordinates are in the same normalized 768-point design space as the art.
-        steam.position = CGPoint(x: side * 0.23, y: side * 0.065)
+        // Mug rim is approximately (550, 457) in the 768-point source art.
+        // SKScene uses a centered, Y-up coordinate system.
+        steam.position = CGPoint(x: side * (550 - 384) / 768,
+                                 y: side * (384 - 457) / 768)
         steam.setScale(side / 768)
     }
 
@@ -171,60 +158,6 @@ final class CompanionSpriteScene: SKScene {
         }
     }
 
-    private static let typingAtlasFrames: [SKTexture] = {
-        let atlas = SKTextureAtlas(named: "Typing")
-        let frames = CompanionTextureStore.orderedTextures(from: atlas)
-        return frames.count == 20 ? frames : CompanionTypingFrames.textures
-    }()
-
     private static let animationKey = "companion.atlas"
 }
 
-
-/// A transparent 20-frame overlay for the companion's two typing paws.
-/// The desk, laptop and character artwork remain completely stationary.
-/// Textures are generated once and reused instead of allocating every timer tick.
-enum CompanionTypingFrames {
-    static let textures: [SKTexture] = (0..<20).map { frame in
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 2
-        format.opaque = false
-        let image = UIGraphicsImageRenderer(size: CGSize(width: 136, height: 76), format: format).image { renderer in
-            let context = renderer.cgContext
-            let phase = CGFloat(frame) * (.pi * 2 / 20)
-            for paw in 0..<2 {
-                let alternate = paw == 0 ? CGFloat(0) : .pi
-                // Alternating key presses with a small natural follow-through.
-                let press = (1 - cos(phase * 2 + alternate)) * 0.5
-                let horizontal = sin(phase + alternate) * 2.8
-                let centerX = CGFloat(paw == 0 ? 47 : 91) + horizontal
-                let centerY = CGFloat(paw == 0 ? 36 : 39) + press * 6
-                context.saveGState()
-                context.setShadow(offset: CGSize(width: 1, height: 3), blur: 4,
-                                  color: UIColor(red: 0.30, green: 0.18, blue: 0.13, alpha: 0.25).cgColor)
-                let outline = CGRect(x: centerX - 19, y: centerY - 13, width: 38, height: 26)
-                let path = UIBezierPath(roundedRect: outline, cornerRadius: 13)
-                UIColor(red: 0.97, green: 0.88, blue: 0.73, alpha: 1).setFill()
-                path.fill()
-                context.restoreGState()
-                // Soft lit upper surface, with subtle individual toe impressions.
-                let highlight = UIBezierPath(ovalIn: CGRect(x: centerX - 16, y: centerY - 12,
-                                                             width: 30, height: 17))
-                UIColor(red: 1, green: 0.97, blue: 0.87, alpha: 0.93).setFill()
-                highlight.fill()
-                UIColor(red: 0.85, green: 0.72, blue: 0.62, alpha: 0.18).setStroke()
-                for finger in 0..<3 {
-                    let line = UIBezierPath()
-                    let x = centerX - 7 + CGFloat(finger) * 7
-                    line.move(to: CGPoint(x: x, y: centerY + 5))
-                    line.addLine(to: CGPoint(x: x + 1, y: centerY + 9))
-                    line.lineWidth = 1
-                    line.stroke()
-                }
-            }
-        }
-        let texture = SKTexture(image: image)
-        texture.filteringMode = .linear
-        return texture
-    }
-}
