@@ -13,6 +13,7 @@ struct QueueHomeView: View {
     ]) private var taskEntities: [TaskEntity]
 
     @AppStorage("showPlannedStartTimes") private var showPlannedStartTimes = false
+    @AppStorage("queuePresentationMode") private var queuePresentationMode = "stack"
 
     @State private var showAddTask = false
     @State private var editingTask: QueueTask?
@@ -27,6 +28,10 @@ struct QueueHomeView: View {
     }
 
     private var headTask: QueueTask? { activeTasks.first }
+
+    private var remainingWorkMinutes: Int {
+        Int(ceil(activeTasks.reduce(0.0) { $0 + $1.estimatedDuration } / 60.0))
+    }
 
     private var projectedStarts: [UUID: Date] {
         QueueSchedule.projectedStarts(orderedActiveTasks: activeTasks, from: Date())
@@ -143,7 +148,22 @@ struct QueueHomeView: View {
 
     private var populatedState: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
+            LazyVStack(spacing: queuePresentationMode == "list" ? QueueSpacing.sm : 0) {
+                HStack {
+                    Text("\(activeTasks.count) tasks · ~\(remainingWorkMinutes) min")
+                        .font(QueueTypography.caption())
+                        .foregroundStyle(QueueColors.secondaryText)
+                    Spacer()
+                    Picker("Queue view", selection: $queuePresentationMode) {
+                        Text("Stack").tag("stack")
+                        Text("List").tag("list")
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 180)
+                    .accessibilityLabel("Queue presentation")
+                }
+                .padding(.horizontal, QueueSpacing.md)
+                .padding(.vertical, QueueSpacing.sm)
                 ForEach(Array(activeTasks.enumerated()), id: \.element.id) { index, task in
                     let isHead = index == 0
                     Group {
@@ -170,15 +190,15 @@ struct QueueHomeView: View {
                         }
                     }
                     .id(task.id)
-                    .frame(maxWidth: .infinity, minHeight: isHead ? 300 : 168, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, minHeight: isHead ? 300 : (queuePresentationMode == "list" ? 112 : 168), alignment: .topLeading)
                     .scrollTransition(
-                        topLeading: reduceMotion ? .identity : .animated(QueueMotion.stackScroll),
-                        bottomTrailing: reduceMotion ? .identity : .animated(QueueMotion.stackScroll)
+                        topLeading: (reduceMotion || queuePresentationMode == "list") ? .identity : .animated(QueueMotion.stackScroll),
+                        bottomTrailing: (reduceMotion || queuePresentationMode == "list") ? .identity : .animated(QueueMotion.stackScroll)
                     ) { content, phase in
                         content
-                            .opacity(stackOpacity(for: phase))
-                            .scaleEffect(x: 1, y: stackScale(for: phase), anchor: .top)
-                            .offset(y: stackOffset(for: phase))
+                            .opacity(queuePresentationMode == "list" ? 1 : stackOpacity(for: phase))
+                            .scaleEffect(x: 1, y: queuePresentationMode == "list" ? 1 : stackScale(for: phase), anchor: .top)
+                            .offset(y: queuePresentationMode == "list" ? 0 : stackOffset(for: phase))
                     }
                 }
             }
