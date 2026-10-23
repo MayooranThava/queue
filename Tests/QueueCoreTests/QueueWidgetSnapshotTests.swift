@@ -70,6 +70,21 @@ struct QueueWidgetSnapshotTests {
         #expect(!label.contains("No active focus"))
         #expect(QueueWidgetFormatting.todayCount(done: snapshot.doneToday, planned: snapshot.plannedToday) == "1/5 today")
         #expect(QueueWidgetFormatting.minutesLabel(head.estimatedDuration) == "15m")
+        #expect(QueueWidgetFormatting.spokenMinutes(head.estimatedDuration) == "15 minutes")
+        #expect(QueueWidgetFormatting.spokenMinutes(60 as TimeInterval) == "1 minute")
+        #expect(QueueWidgetFormatting.lockScreenNextLine(title: head.title, duration: head.estimatedDuration) == "Next: Update résumé · 15m")
+        #expect(QueueWidgetFormatting.nextTaskSpoken(title: head.title, duration: head.estimatedDuration) == "Next task: Update résumé, 15 minutes.")
+        #expect(QueueWidgetFormatting.rowAccessibility(title: "Reply to Alex", duration: 20 * 60 as TimeInterval) == "Reply to Alex, 20 minutes")
+        #expect(QueueWidgetFormatting.todayAccessibility(done: 1, planned: 5) == "1 of 5 done today")
+    }
+
+    @Test("Gallery focus placeholder uses the 15-minute preset")
+    func galleryPlaceholderIsFifteenMinutes() {
+        let snapshot = FocusWidgetSnapshot.galleryPlaceholder(at: now)
+        #expect(snapshot.estimatedDuration == QueueTask.defaultEstimatedDuration)
+        #expect(snapshot.session.plannedDuration == 15 * 60)
+        #expect(snapshot.session.state == .running)
+        #expect(snapshot.isActivelyTiming)
     }
 
     @Test("Up next keeps at most five blocks after the head")

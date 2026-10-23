@@ -78,6 +78,7 @@ targets:
       - path: Queue/App/AppModelContainer.swift
     resources:
       - path: Shared/QueueColors.xcassets
+      - path: Shared/CompanionStills.xcassets
     entitlements:
       path: QueueWidgets/QueueWidgets.entitlements
     dependencies:

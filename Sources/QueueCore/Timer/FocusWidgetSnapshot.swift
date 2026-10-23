@@ -48,6 +48,26 @@ public struct FocusWidgetSnapshot: Codable, Sendable, Equatable {
             return false
         }
     }
+
+    /// Gallery and preview session. Uses the 15-minute preset, not a 25-minute block.
+    public static func galleryPlaceholder(at now: Date = Date()) -> FocusWidgetSnapshot {
+        let taskID = UUID()
+        let duration = QueueTask.defaultEstimatedDuration
+        let session = FocusSession(
+            taskID: taskID,
+            sessionStart: now,
+            segmentStart: now,
+            plannedDuration: duration,
+            state: .running
+        )
+        return FocusWidgetSnapshot(
+            taskID: taskID,
+            taskTitle: "Ship the focus timer",
+            difficultyDisplayName: "Medium",
+            estimatedDuration: duration,
+            session: session
+        )
+    }
 }
 
 /// Formats countdown labels consistently across Focus, Queue, and widgets.

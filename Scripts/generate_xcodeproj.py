@@ -91,6 +91,8 @@ def main() -> None:
     colors_ref = xid()
     colors_build_app = xid()
     colors_build_widget = xid()
+    companion_ref = xid()
+    companion_build_widget = xid()
     widget_resources_phase = xid()
     atlas_refs: dict[Path, str] = {path: xid() for path in atlases}
     atlas_builds: dict[Path, str] = {path: xid() for path in atlases}
@@ -133,6 +135,7 @@ def main() -> None:
     w(f"\t\t{assets_build} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {assets_ref} /* Assets.xcassets */; }};")
     w(f"\t\t{colors_build_app} /* QueueColors.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {colors_ref} /* QueueColors.xcassets */; }};")
     w(f"\t\t{colors_build_widget} /* QueueColors.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {colors_ref} /* QueueColors.xcassets */; }};")
+    w(f"\t\t{companion_build_widget} /* CompanionStills.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {companion_ref} /* CompanionStills.xcassets */; }};")
     for path, bid in atlas_builds.items():
         w(f"\t\t{bid} /* {path.name} in Resources */ = {{isa = PBXBuildFile; fileRef = {atlas_refs[path]} /* {path.name} */; }};")
     w(f"\t\t{package_product_dep_app} /* QueueCore in Frameworks */ = {{isa = PBXBuildFile; productRef = {product_ref_app} /* QueueCore */; }};")
@@ -154,6 +157,10 @@ def main() -> None:
     w(
         f"\t\t{colors_ref} /* QueueColors.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; "
         f"name = QueueColors.xcassets; path = Shared/QueueColors.xcassets; sourceTree = SOURCE_ROOT; }};"
+    )
+    w(
+        f"\t\t{companion_ref} /* CompanionStills.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; "
+        f"name = CompanionStills.xcassets; path = Shared/CompanionStills.xcassets; sourceTree = SOURCE_ROOT; }};"
     )
     for path, ref in atlas_refs.items():
         rel = path.relative_to(ROOT).as_posix()
@@ -213,7 +220,7 @@ def main() -> None:
     w("\t\t};")
     w(f"\t\t{shared_group} /* Shared */ = {{")
     w("\t\t\tisa = PBXGroup;")
-    w(f"\t\t\tchildren = ({', '.join(file_refs[p] for p in shared_files)}, {colors_ref});")
+    w(f"\t\t\tchildren = ({', '.join(file_refs[p] for p in shared_files)}, {colors_ref}, {companion_ref});")
     w("\t\t\tname = Shared;")
     w('\t\t\tsourceTree = "<group>";')
     w("\t\t};")
@@ -264,7 +271,7 @@ def main() -> None:
     w(f"\t\t{widget_resources_phase} /* Resources */ = {{")
     w("\t\t\tisa = PBXResourcesBuildPhase;")
     w("\t\t\tbuildActionMask = 2147483647;")
-    w(f"\t\t\tfiles = ({colors_build_widget});")
+    w(f"\t\t\tfiles = ({colors_build_widget}, {companion_build_widget});")
     w("\t\t\trunOnlyForDeploymentPostprocessing = 0;")
     w("\t\t};")
     w(f"\t\t{frameworks_phase_app} /* Frameworks */ = {{")

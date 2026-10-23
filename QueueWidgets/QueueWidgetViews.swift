@@ -6,10 +6,13 @@ import QueueCore
 struct FocusTimerWidgetView: View {
     var entry: FocusTimerEntry
     @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetRenderingMode) private var renderingMode
 
     private var chrome: QueueWidgetChrome {
         QueueWidgetChromeState.make(focus: entry.focus, queue: entry.queue, at: entry.date)
     }
+
+    private var palette: WidgetPalette { WidgetPalette(mode: renderingMode) }
 
     var body: some View {
         Group {
@@ -22,10 +25,12 @@ struct FocusTimerWidgetView: View {
                 smallLayout
             }
         }
+        .dynamicTypeSize(.xSmall ... .accessibility2)
+        // Background stays in the container so tinted, clear, and StandBy can remove it.
         .containerBackground(for: .widget) {
-            QueueColors.dark(.background)
+            renderingMode == .fullColor ? palette.background : Color.clear
         }
-        .environment(\.colorScheme, .dark)
+        .modifier(WidgetFullColorScheme())
         .widgetURL(entry.focus?.isActivelyTiming == true ? QueueDeepLink.focus : QueueDeepLink.queue)
     }
 
@@ -33,8 +38,20 @@ struct FocusTimerWidgetView: View {
 
     private var smallLayout: some View {
         VStack(alignment: .leading, spacing: 8) {
-            header(titleLines: showsLiveClock ? 1 : 2)
-            countdown(fontSize: 28)
+            if showsLiveClock {
+                header(titleLines: 1)
+                HStack(alignment: .center, spacing: 8) {
+                    countdown(fontSize: 28)
+                    Spacer(minLength: 0)
+                    companion(diameter: 48)
+                }
+            } else {
+                HStack(alignment: .top, spacing: 8) {
+                    header(titleLines: 2)
+                    Spacer(minLength: 0)
+                    companion(diameter: 40)
+                }
+            }
             Spacer(minLength: 0)
             controls
         }
@@ -44,8 +61,19 @@ struct FocusTimerWidgetView: View {
     private var mediumLayout: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 8) {
-                header(titleLines: 2)
-                countdown(fontSize: 32)
+                HStack(alignment: .top, spacing: 8) {
+                    header(titleLines: 2)
+                    if !showsLiveClock {
+                        Spacer(minLength: 0)
+                        companion(diameter: 44)
+                    }
+                }
+                if showsLiveClock {
+                    HStack(alignment: .center, spacing: 8) {
+                        countdown(fontSize: 28)
+                        companion(diameter: 52)
+                    }
+                }
                 Spacer(minLength: 0)
                 controls
             }
@@ -70,7 +98,7 @@ struct FocusTimerWidgetView: View {
                     controls
                 }
                 Spacer(minLength: 0)
-                WidgetCompanionBadge(state: companionState, progress: ringProgress)
+                companion(diameter: 72)
             }
 
             upNextList(limit: 5)
@@ -79,7 +107,7 @@ struct FocusTimerWidgetView: View {
             if let finish = projectedFinishText {
                 Text(finish)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(QueueColors.dark(.textPrimary))
+                    .foregroundStyle(palette.textPrimary)
                     .accessibilityLabel(finish)
             }
         }
@@ -92,47 +120,62 @@ struct FocusTimerWidgetView: View {
     private func header(titleLines: Int) -> some View {
         switch chrome {
         case .needsLaunch:
-            wordmark
-            Text("Open Queue")
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .foregroundStyle(QueueColors.dark(.textPrimary))
-            Text("Your next block will show here.")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(QueueColors.dark(.textSecondary))
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 2) {
+                wordmark
+                Text("Open Queue")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(palette.textPrimary)
+                Text("Your next block will show here.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(palette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Open Queue. Your next block will show here.")
         case .empty:
-            wordmark
-            Text("Queue is clear")
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .foregroundStyle(QueueColors.dark(.textPrimary))
-            Text("Add a task to get started.")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(QueueColors.dark(.textSecondary))
+            VStack(alignment: .leading, spacing: 2) {
+                wordmark
+                Text("Queue is clear")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(palette.textPrimary)
+                Text("Add a task to get started.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(palette.textSecondary)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Queue is clear. Add a task to get started.")
         case .ready(let next):
-            wordmark
-            Text(next.title)
-                .font(.system(size: family == .systemSmall ? 17 : 18, weight: .semibold, design: .rounded))
-                .foregroundStyle(QueueColors.dark(.textPrimary))
-                .lineLimit(titleLines)
-                .minimumScaleFactor(0.75)
-            HStack(spacing: 8) {
-                durationChip(next.duration)
-                if family == .systemSmall {
-                    Spacer(minLength: 0)
-                    todayCount
+            VStack(alignment: .leading, spacing: 4) {
+                wordmark
+                Text(next.title)
+                    .font(.system(size: family == .systemSmall ? 17 : 18, weight: .semibold, design: .rounded))
+                    .foregroundStyle(palette.textPrimary)
+                    .lineLimit(titleLines)
+                    .minimumScaleFactor(0.7)
+                HStack(spacing: 8) {
+                    durationChip(next.duration)
+                    if family == .systemSmall {
+                        Spacer(minLength: 0)
+                        todayCount
+                    }
                 }
             }
         case .focusing, .paused, .expired:
             if let focus = entry.focus {
-                Text(focus.taskTitle)
-                    .font(.system(size: family == .systemSmall ? 15 : 17, weight: .semibold, design: .rounded))
-                    .foregroundStyle(QueueColors.dark(.textPrimary))
-                    .lineLimit(titleLines)
-                    .minimumScaleFactor(0.75)
-                Text(statusLine(focus))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(statusColor)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(focus.taskTitle)
+                        .font(.system(size: family == .systemSmall ? 15 : 17, weight: .semibold, design: .rounded))
+                        .foregroundStyle(palette.textPrimary)
+                        .lineLimit(titleLines)
+                        .minimumScaleFactor(0.7)
+                    Text(statusLine(focus))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(statusColor)
+                        .lineLimit(1)
+                        .widgetAccentable(chrome == .expired)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(focus.taskTitle), \(statusLine(focus))")
             }
         }
     }
@@ -140,17 +183,17 @@ struct FocusTimerWidgetView: View {
     private var wordmark: some View {
         Text("Queue")
             .font(.system(size: 13, weight: .semibold, design: .rounded))
-            .foregroundStyle(QueueColors.dark(.textSecondary))
+            .foregroundStyle(palette.textSecondary)
     }
 
     private func durationChip(_ duration: TimeInterval) -> some View {
         Text(QueueWidgetFormatting.minutesLabel(duration))
             .font(.system(size: 12, weight: .semibold, design: .rounded).monospacedDigit())
-            .foregroundStyle(QueueColors.dark(.onPrimary))
+            .foregroundStyle(palette.onPrimary)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(QueueColors.dark(.primary), in: Capsule())
-            .accessibilityLabel(QueueWidgetFormatting.minutesLabel(duration))
+            .background(palette.primaryFill, in: Capsule())
+            .accessibilityLabel(QueueWidgetFormatting.spokenMinutes(duration))
     }
 
     private var todayCount: some View {
@@ -158,8 +201,8 @@ struct FocusTimerWidgetView: View {
         let planned = entry.queue?.plannedToday ?? 0
         return Text(QueueWidgetFormatting.todayCount(done: done, planned: planned))
             .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
-            .foregroundStyle(QueueColors.dark(.textSecondary))
-            .accessibilityLabel("\(done) of \(planned) done today")
+            .foregroundStyle(palette.textSecondary)
+            .accessibilityLabel(QueueWidgetFormatting.todayAccessibility(done: done, planned: planned))
     }
 
     private func upNextList(limit: Int) -> some View {
@@ -167,24 +210,25 @@ struct FocusTimerWidgetView: View {
         return VStack(alignment: .leading, spacing: 6) {
             Text("Up next")
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(QueueColors.dark(.textSecondary))
+                .foregroundStyle(palette.textSecondary)
             if rows.isEmpty {
                 Text(chrome == .empty || chrome == .needsLaunch ? "Nothing queued" : "Nothing after this")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(QueueColors.dark(.textSecondary))
+                    .foregroundStyle(palette.textSecondary)
             } else {
                 ForEach(rows) { row in
                     HStack(spacing: 6) {
                         Text(row.title)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Text(QueueWidgetFormatting.minutesLabel(row.duration))
                             .monospacedDigit()
                     }
                     .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(QueueColors.dark(.textPrimary))
+                    .foregroundStyle(palette.textPrimary)
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(row.title), \(QueueWidgetFormatting.minutesLabel(row.duration))")
+                    .accessibilityLabel(QueueWidgetFormatting.rowAccessibility(title: row.title, duration: row.duration))
                 }
             }
         }
@@ -195,10 +239,11 @@ struct FocusTimerWidgetView: View {
             todayCount
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(QueueColors.dark(.surface))
+                    Capsule().fill(palette.track)
                     Capsule()
-                        .fill(QueueColors.dark(.accent))
+                        .fill(palette.accent)
                         .frame(width: max(0, proxy.size.width * todayFraction))
+                        .widgetAccentable()
                 }
             }
             .frame(height: 6)
@@ -269,8 +314,13 @@ struct FocusTimerWidgetView: View {
     @ViewBuilder
     private func countdown(fontSize: CGFloat) -> some View {
         if showsLiveClock, let focus = entry.focus {
-            LiveCountdownText(snapshot: focus, at: entry.date, fontSize: fontSize)
+            LiveCountdownText(snapshot: focus, at: entry.date, fontSize: fontSize, color: palette.textPrimary)
+                .widgetAccentable()
         }
+    }
+
+    private func companion(diameter: CGFloat) -> some View {
+        WidgetCompanionBadge(state: companionState, progress: ringProgress, diameter: diameter)
     }
 
     private var showsLiveClock: Bool {
@@ -300,7 +350,7 @@ struct FocusTimerWidgetView: View {
     }
 
     private var statusColor: Color {
-        chrome == .expired ? QueueColors.dark(.accent) : QueueColors.dark(.textSecondary)
+        chrome == .expired ? palette.accent : palette.textSecondary
     }
 
     private func statusLine(_ snapshot: FocusWidgetSnapshot) -> String {
@@ -331,20 +381,26 @@ private struct WidgetIntentButton<I: AppIntent>: View {
     var prominent: Bool
     var accessibilityLabel: String
 
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
+    private var palette: WidgetPalette { WidgetPalette(mode: renderingMode) }
+
     var body: some View {
         Button(intent: intent) {
             Text(title)
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(prominent ? QueueColors.dark(.onPrimary) : QueueColors.dark(.textPrimary))
+                .foregroundStyle(prominent ? palette.onPrimary : palette.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .background(
-                    prominent ? QueueColors.dark(.primary) : QueueColors.dark(.surface),
+                    prominent ? palette.primaryFill : palette.secondaryFill,
                     in: RoundedRectangle(cornerRadius: 12, style: .continuous)
                 )
         }
         .buttonStyle(.plain)
+        // Primary action takes the accent in tinted, clear, and vibrant styles.
+        .widgetAccentable(prominent)
         .invalidatableContent()
         .accessibilityLabel(accessibilityLabel)
     }

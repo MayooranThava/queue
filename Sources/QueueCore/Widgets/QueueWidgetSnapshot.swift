@@ -148,15 +148,42 @@ public enum QueueWidgetFormatting {
         return "\(minutes)m"
     }
 
+    /// Spoken duration for VoiceOver. The visible chip stays compact (`15m`).
+    public static func spokenMinutes(_ duration: TimeInterval) -> String {
+        let minutes = max(1, Int((duration / 60).rounded()))
+        let unit = minutes == 1 ? "minute" : "minutes"
+        return "\(minutes) \(unit)"
+    }
+
     public static func todayCount(done: Int, planned: Int) -> String {
         "\(done)/\(planned) today"
     }
 
+    public static func todayAccessibility(done: Int, planned: Int) -> String {
+        "\(done) of \(planned) done today"
+    }
+
+    public static func rowAccessibility(title: String, duration: TimeInterval) -> String {
+        "\(title), \(spokenMinutes(duration))"
+    }
+
+    /// Lock Screen rectangular idle line from the brief: "Next: <title> · 15m".
+    public static func lockScreenNextLine(title: String, duration: TimeInterval) -> String {
+        "Next: \(title) · \(minutesLabel(duration))"
+    }
+
+    /// Spoken next-task label, without the Start action.
+    public static func nextTaskSpoken(title: String, duration: TimeInterval) -> String {
+        "Next task: \(title), \(spokenMinutes(duration))."
+    }
+
     /// VoiceOver label for the idle Start affordance. Matches the brief's spoken form.
     public static func nextTaskAccessibility(title: String, duration: TimeInterval) -> String {
-        let minutes = max(1, Int((duration / 60).rounded()))
-        let unit = minutes == 1 ? "minute" : "minutes"
-        return "Next task: \(title), \(minutes) \(unit). Start."
+        "\(nextTaskSpoken(title: title, duration: duration)) Start."
+    }
+
+    public static func focusAccessibility(title: String, status: String, remaining: TimeInterval) -> String {
+        "\(title), \(status). Time remaining \(FocusTimerFormatting.spoken(remaining))."
     }
 }
 
