@@ -7,13 +7,13 @@ struct CalendarPlaceholderView: View {
             VStack(spacing: QueueSpacing.md) {
                 Image(systemName: "calendar")
                     .font(.system(size: 36, weight: .light))
-                    .foregroundStyle(QueueColors.sageDeep)
+                    .foregroundStyle(QueueColors.primary)
                 Text("Calendar")
                     .font(QueueTypography.title(28))
-                    .foregroundStyle(QueueColors.primaryText)
+                    .foregroundStyle(QueueColors.textPrimary)
                 Text("Apple Calendar and Smart Gaps arrive in a later phase. Your queue works without them.")
                     .font(QueueTypography.body())
-                    .foregroundStyle(QueueColors.secondaryText)
+                    .foregroundStyle(QueueColors.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, QueueSpacing.xl)
             }

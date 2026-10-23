@@ -8,7 +8,7 @@ struct LiveCountdownText: View {
     let at: Date
     var fontSize: CGFloat = 32
     var weight: Font.Weight = .medium
-    var color: Color = Color(red: 0.98, green: 0.97, blue: 0.94)
+    var color: Color = QueueColors.dark(.textPrimary)
 
     var body: some View {
         Group {

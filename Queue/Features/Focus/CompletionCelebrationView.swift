@@ -58,13 +58,13 @@ struct CompletionCelebrationView: View {
 
             Text("Nice work")
                 .font(QueueTypography.title(30))
-                .foregroundStyle(QueueColors.ivory)
+                .foregroundStyle(QueueColors.textPrimary)
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 8)
 
             Text(outcome.task.title)
                 .font(QueueTypography.body())
-                .foregroundStyle(QueueColors.ivory.opacity(0.7))
+                .foregroundStyle(QueueColors.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, QueueSpacing.xl)
                 .opacity(appeared ? 1 : 0)
@@ -72,14 +72,14 @@ struct CompletionCelebrationView: View {
             VStack(spacing: QueueSpacing.sm) {
                 Text("+\(displayedXP) XP")
                     .font(QueueTypography.display(44))
-                    .foregroundStyle(QueueColors.reward)
+                    .foregroundStyle(QueueColors.accent)
                     .contentTransition(.numericText())
                     .accessibilityLabel("\(outcome.award.awardedXP) experience points earned")
 
                 if showBreakdown {
                     Text(breakdownCaption)
                         .font(QueueTypography.caption())
-                        .foregroundStyle(QueueColors.ivory.opacity(0.65))
+                        .foregroundStyle(QueueColors.textSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, QueueSpacing.xl)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -92,12 +92,12 @@ struct CompletionCelebrationView: View {
                 if showLevelUpBadge, let crossed = outcome.award.levelsCrossed.last {
                     Text("Level up — \(crossed.name)")
                         .font(QueueTypography.headline(17))
-                        .foregroundStyle(QueueColors.sage)
+                        .foregroundStyle(QueueColors.onAccent)
                         .padding(.horizontal, QueueSpacing.md)
                         .padding(.vertical, QueueSpacing.xs)
                         .background(
                             Capsule(style: .continuous)
-                                .fill(QueueColors.reward.opacity(0.18))
+                                .fill(QueueColors.accent)
                         )
                         .transition(.scale.combined(with: .opacity))
                 }
@@ -107,10 +107,10 @@ struct CompletionCelebrationView: View {
 
             VStack(spacing: QueueSpacing.sm) {
                 Button("Continue", action: onContinue)
-                    .buttonStyle(QueuePrimaryButtonStyle(onDarkSurface: true))
+                    .buttonStyle(QueuePrimaryButtonStyle())
                 Button("Skip celebration", action: onSkip)
                     .font(QueueTypography.caption())
-                    .foregroundStyle(QueueColors.ivory.opacity(0.55))
+                    .foregroundStyle(QueueColors.textSecondary)
                     .frame(minHeight: QueueSpacing.minTouch)
             }
             .padding(.horizontal, QueueSpacing.xl)
@@ -126,20 +126,20 @@ struct CompletionCelebrationView: View {
             HStack {
                 Text(currentLevelName)
                     .font(QueueTypography.caption())
-                    .foregroundStyle(QueueColors.ivory.opacity(0.55))
+                    .foregroundStyle(QueueColors.textSecondary)
                 Spacer()
                 if let nextLevelName {
                     Text(nextLevelName)
                         .font(QueueTypography.caption())
-                        .foregroundStyle(QueueColors.ivory.opacity(0.55))
+                        .foregroundStyle(QueueColors.textSecondary)
                 }
             }
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(QueueColors.ivory.opacity(0.12))
+                        .fill(QueueColors.surface)
                     Capsule()
-                        .fill(QueueColors.reward)
+                        .fill(QueueColors.accent)
                         .frame(width: proxy.size.width * levelFill)
                 }
             }

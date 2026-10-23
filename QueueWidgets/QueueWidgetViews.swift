@@ -23,8 +23,9 @@ struct FocusTimerWidgetView: View {
             }
         }
         .containerBackground(for: .widget) {
-            QueueWidgetColors.charcoal
+            QueueColors.dark(.background)
         }
+        .environment(\.colorScheme, .dark)
         .widgetURL(entry.focus?.isActivelyTiming == true ? QueueDeepLink.focus : QueueDeepLink.queue)
     }
 
@@ -78,7 +79,7 @@ struct FocusTimerWidgetView: View {
             if let finish = projectedFinishText {
                 Text(finish)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(QueueWidgetColors.ivory.opacity(0.8))
+                    .foregroundStyle(QueueColors.dark(.textPrimary))
                     .accessibilityLabel(finish)
             }
         }
@@ -94,24 +95,24 @@ struct FocusTimerWidgetView: View {
             wordmark
             Text("Open Queue")
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .foregroundStyle(QueueWidgetColors.ivory)
+                .foregroundStyle(QueueColors.dark(.textPrimary))
             Text("Your next block will show here.")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(QueueWidgetColors.ivory.opacity(0.55))
+                .foregroundStyle(QueueColors.dark(.textSecondary))
                 .fixedSize(horizontal: false, vertical: true)
         case .empty:
             wordmark
             Text("Queue is clear")
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .foregroundStyle(QueueWidgetColors.ivory)
+                .foregroundStyle(QueueColors.dark(.textPrimary))
             Text("Add a task to get started.")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(QueueWidgetColors.ivory.opacity(0.55))
+                .foregroundStyle(QueueColors.dark(.textSecondary))
         case .ready(let next):
             wordmark
             Text(next.title)
                 .font(.system(size: family == .systemSmall ? 17 : 18, weight: .semibold, design: .rounded))
-                .foregroundStyle(QueueWidgetColors.ivory)
+                .foregroundStyle(QueueColors.dark(.textPrimary))
                 .lineLimit(titleLines)
                 .minimumScaleFactor(0.75)
             HStack(spacing: 8) {
@@ -125,7 +126,7 @@ struct FocusTimerWidgetView: View {
             if let focus = entry.focus {
                 Text(focus.taskTitle)
                     .font(.system(size: family == .systemSmall ? 15 : 17, weight: .semibold, design: .rounded))
-                    .foregroundStyle(QueueWidgetColors.ivory)
+                    .foregroundStyle(QueueColors.dark(.textPrimary))
                     .lineLimit(titleLines)
                     .minimumScaleFactor(0.75)
                 Text(statusLine(focus))
@@ -139,16 +140,16 @@ struct FocusTimerWidgetView: View {
     private var wordmark: some View {
         Text("Queue")
             .font(.system(size: 13, weight: .semibold, design: .rounded))
-            .foregroundStyle(QueueWidgetColors.sage)
+            .foregroundStyle(QueueColors.dark(.textSecondary))
     }
 
     private func durationChip(_ duration: TimeInterval) -> some View {
         Text(QueueWidgetFormatting.minutesLabel(duration))
             .font(.system(size: 12, weight: .semibold, design: .rounded).monospacedDigit())
-            .foregroundStyle(QueueWidgetColors.charcoal)
+            .foregroundStyle(QueueColors.dark(.onPrimary))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(QueueWidgetColors.sage, in: Capsule())
+            .background(QueueColors.dark(.primary), in: Capsule())
             .accessibilityLabel(QueueWidgetFormatting.minutesLabel(duration))
     }
 
@@ -157,7 +158,7 @@ struct FocusTimerWidgetView: View {
         let planned = entry.queue?.plannedToday ?? 0
         return Text(QueueWidgetFormatting.todayCount(done: done, planned: planned))
             .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
-            .foregroundStyle(QueueWidgetColors.ivory.opacity(0.7))
+            .foregroundStyle(QueueColors.dark(.textSecondary))
             .accessibilityLabel("\(done) of \(planned) done today")
     }
 
@@ -166,11 +167,11 @@ struct FocusTimerWidgetView: View {
         return VStack(alignment: .leading, spacing: 6) {
             Text("Up next")
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(QueueWidgetColors.sage)
+                .foregroundStyle(QueueColors.dark(.textSecondary))
             if rows.isEmpty {
                 Text(chrome == .empty || chrome == .needsLaunch ? "Nothing queued" : "Nothing after this")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(QueueWidgetColors.ivory.opacity(0.45))
+                    .foregroundStyle(QueueColors.dark(.textSecondary))
             } else {
                 ForEach(rows) { row in
                     HStack(spacing: 6) {
@@ -181,7 +182,7 @@ struct FocusTimerWidgetView: View {
                             .monospacedDigit()
                     }
                     .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(QueueWidgetColors.ivory.opacity(0.82))
+                    .foregroundStyle(QueueColors.dark(.textPrimary))
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("\(row.title), \(QueueWidgetFormatting.minutesLabel(row.duration))")
                 }
@@ -194,9 +195,9 @@ struct FocusTimerWidgetView: View {
             todayCount
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(QueueWidgetColors.ivory.opacity(0.12))
+                    Capsule().fill(QueueColors.dark(.surface))
                     Capsule()
-                        .fill(QueueWidgetColors.reward)
+                        .fill(QueueColors.dark(.accent))
                         .frame(width: max(0, proxy.size.width * todayFraction))
                 }
             }
@@ -299,7 +300,7 @@ struct FocusTimerWidgetView: View {
     }
 
     private var statusColor: Color {
-        chrome == .expired ? QueueWidgetColors.reward : QueueWidgetColors.ivory.opacity(0.55)
+        chrome == .expired ? QueueColors.dark(.accent) : QueueColors.dark(.textSecondary)
     }
 
     private func statusLine(_ snapshot: FocusWidgetSnapshot) -> String {
@@ -334,12 +335,12 @@ private struct WidgetIntentButton<I: AppIntent>: View {
         Button(intent: intent) {
             Text(title)
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(prominent ? QueueWidgetColors.charcoal : QueueWidgetColors.ivory)
+                .foregroundStyle(prominent ? QueueColors.dark(.onPrimary) : QueueColors.dark(.textPrimary))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .background(
-                    prominent ? QueueWidgetColors.sage : QueueWidgetColors.ivory.opacity(0.14),
+                    prominent ? QueueColors.dark(.primary) : QueueColors.dark(.surface),
                     in: RoundedRectangle(cornerRadius: 12, style: .continuous)
                 )
         }

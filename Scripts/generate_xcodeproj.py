@@ -88,6 +88,10 @@ def main() -> None:
     product_ref_test = xid()
     assets_ref = xid()
     assets_build = xid()
+    colors_ref = xid()
+    colors_build_app = xid()
+    colors_build_widget = xid()
+    widget_resources_phase = xid()
     atlas_refs: dict[Path, str] = {path: xid() for path in atlases}
     atlas_builds: dict[Path, str] = {path: xid() for path in atlases}
     widget_embed_build = xid()
@@ -127,6 +131,8 @@ def main() -> None:
     for path, bid in build_files_test.items():
         w(f"\t\t{bid} /* {path.name} in Sources */ = {{isa = PBXBuildFile; fileRef = {file_refs[path]} /* {path.name} */; }};")
     w(f"\t\t{assets_build} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {assets_ref} /* Assets.xcassets */; }};")
+    w(f"\t\t{colors_build_app} /* QueueColors.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {colors_ref} /* QueueColors.xcassets */; }};")
+    w(f"\t\t{colors_build_widget} /* QueueColors.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {colors_ref} /* QueueColors.xcassets */; }};")
     for path, bid in atlas_builds.items():
         w(f"\t\t{bid} /* {path.name} in Resources */ = {{isa = PBXBuildFile; fileRef = {atlas_refs[path]} /* {path.name} */; }};")
     w(f"\t\t{package_product_dep_app} /* QueueCore in Frameworks */ = {{isa = PBXBuildFile; productRef = {product_ref_app} /* QueueCore */; }};")
@@ -144,6 +150,10 @@ def main() -> None:
     w(
         f"\t\t{assets_ref} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; "
         f"name = Assets.xcassets; path = Queue/Resources/Assets.xcassets; sourceTree = SOURCE_ROOT; }};"
+    )
+    w(
+        f"\t\t{colors_ref} /* QueueColors.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; "
+        f"name = QueueColors.xcassets; path = Shared/QueueColors.xcassets; sourceTree = SOURCE_ROOT; }};"
     )
     for path, ref in atlas_refs.items():
         rel = path.relative_to(ROOT).as_posix()
@@ -203,7 +213,7 @@ def main() -> None:
     w("\t\t};")
     w(f"\t\t{shared_group} /* Shared */ = {{")
     w("\t\t\tisa = PBXGroup;")
-    w(f"\t\t\tchildren = ({', '.join(file_refs[p] for p in shared_files)});")
+    w(f"\t\t\tchildren = ({', '.join(file_refs[p] for p in shared_files)}, {colors_ref});")
     w("\t\t\tname = Shared;")
     w('\t\t\tsourceTree = "<group>";')
     w("\t\t};")
@@ -244,11 +254,17 @@ def main() -> None:
     w(f"\t\t\tfiles = ({', '.join(build_files_test.values())});")
     w("\t\t\trunOnlyForDeploymentPostprocessing = 0;")
     w("\t\t};")
-    resource_files = ", ".join([assets_build, *[atlas_builds[p] for p in atlases]])
+    resource_files = ", ".join([assets_build, colors_build_app, *[atlas_builds[p] for p in atlases]])
     w(f"\t\t{resources_phase} /* Resources */ = {{")
     w("\t\t\tisa = PBXResourcesBuildPhase;")
     w("\t\t\tbuildActionMask = 2147483647;")
     w(f"\t\t\tfiles = ({resource_files});")
+    w("\t\t\trunOnlyForDeploymentPostprocessing = 0;")
+    w("\t\t};")
+    w(f"\t\t{widget_resources_phase} /* Resources */ = {{")
+    w("\t\t\tisa = PBXResourcesBuildPhase;")
+    w("\t\t\tbuildActionMask = 2147483647;")
+    w(f"\t\t\tfiles = ({colors_build_widget});")
     w("\t\t\trunOnlyForDeploymentPostprocessing = 0;")
     w("\t\t};")
     w(f"\t\t{frameworks_phase_app} /* Frameworks */ = {{")
@@ -295,7 +311,7 @@ def main() -> None:
     w(f"\t\t{widget_target} /* QueueWidgets */ = {{")
     w("\t\t\tisa = PBXNativeTarget;")
     w(f"\t\t\tbuildConfigurationList = {widget_config_list} /* Build configuration list for PBXNativeTarget \"QueueWidgets\" */;")
-    w(f"\t\t\tbuildPhases = ({sources_phase_widget}, {frameworks_phase_widget});")
+    w(f"\t\t\tbuildPhases = ({sources_phase_widget}, {frameworks_phase_widget}, {widget_resources_phase});")
     w("\t\t\tbuildRules = ();")
     w("\t\t\tdependencies = ();")
     w("\t\t\tname = QueueWidgets;")
