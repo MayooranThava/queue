@@ -532,7 +532,16 @@ final class TaskRepository {
         let tasks = await queueService.allTasks()
         let snapshot = QueueWidgetSnapshotBuilder.make(tasks: tasks, at: now)
         QueueActivityStore.save(snapshot)
+        publishCompanionVisibility()
         QueueWidgetReload.reload()
+    }
+
+    /// Publishes Show companion before the next Live Activity update reads it.
+    private func publishCompanionVisibility() {
+        let descriptor = FetchDescriptor<UserPreferencesEntity>()
+        guard let entities = try? context.fetch(descriptor) else { return }
+        let visible = entities.first?.companionVisible ?? true
+        CompanionPreferenceStore.setVisible(visible)
     }
 
     /// Replaces the in-memory queue, timer, and XP ledger with a store another process just wrote.

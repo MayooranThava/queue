@@ -14,7 +14,7 @@ struct StartNextTaskIntent: AppIntent {
     }
 }
 
-struct PauseResumeFocusIntent: AppIntent {
+struct PauseResumeFocusIntent: AppIntent, LiveActivityIntent {
     static var title: LocalizedStringResource = "Pause or resume focus"
     static var description = IntentDescription("Pauses a running focus block, or resumes a paused one.")
     static var openAppWhenRun = false
@@ -26,7 +26,7 @@ struct PauseResumeFocusIntent: AppIntent {
     }
 }
 
-struct CompleteTaskIntent: AppIntent {
+struct CompleteTaskIntent: AppIntent, LiveActivityIntent {
     static var title: LocalizedStringResource = "Mark block done"
     static var description = IntentDescription("Completes the current focus block and awards XP once.")
     static var openAppWhenRun = false
@@ -38,7 +38,7 @@ struct CompleteTaskIntent: AppIntent {
     }
 }
 
-struct ExtendFocusIntent: AppIntent {
+struct ExtendFocusIntent: AppIntent, LiveActivityIntent {
     static var title: LocalizedStringResource = "Add five minutes"
     static var description = IntentDescription("Extends the current focus block by five minutes.")
     static var openAppWhenRun = false
