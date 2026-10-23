@@ -97,7 +97,9 @@ private struct LockScreenFocusView: View {
                 idle
             }
         }
+        // Lock Screen widgets are vibrant. A clear container lets the system material show.
         .containerBackground(for: .widget) { Color.clear }
+        .dynamicTypeSize(.xSmall ... .accessibility2)
     }
 
     @ViewBuilder
@@ -109,34 +111,47 @@ private struct LockScreenFocusView: View {
                     Text("Focus")
                 }
                 .gaugeStyle(.accessoryCircularCapacity)
+                .widgetAccentable()
                 if snapshot.session.state == .running,
                    let end = snapshot.runningEndDate(at: entry.date),
                    snapshot.remaining(at: entry.date) > 0 {
                     Text(timerInterval: entry.date...end, countsDown: true)
                         .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
                         .minimumScaleFactor(0.5)
+                        .widgetAccentable()
                 } else {
                     Text(FocusTimerFormatting.clock(snapshot.remaining(at: entry.date)))
                         .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
+                        .widgetAccentable()
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(focusAccessibility(snapshot))
         case .accessoryInline:
-            if snapshot.session.state == .running,
-               let end = snapshot.runningEndDate(at: entry.date),
-               snapshot.remaining(at: entry.date) > 0 {
-                Text(timerInterval: entry.date...end, countsDown: true)
-                + Text(" · \(snapshot.taskTitle)")
-            } else {
-                Text("\(FocusTimerFormatting.clock(snapshot.remaining(at: entry.date))) · \(snapshot.taskTitle)")
+            Group {
+                if snapshot.session.state == .running,
+                   let end = snapshot.runningEndDate(at: entry.date),
+                   snapshot.remaining(at: entry.date) > 0 {
+                    Text(timerInterval: entry.date...end, countsDown: true)
+                    + Text(" · \(snapshot.taskTitle)")
+                } else {
+                    Text("\(FocusTimerFormatting.clock(snapshot.remaining(at: entry.date))) · \(snapshot.taskTitle)")
+                }
             }
+            .widgetAccentable()
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(focusAccessibility(snapshot))
         default:
             VStack(alignment: .leading, spacing: 2) {
                 Text(snapshot.taskTitle)
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                LiveCountdownText(snapshot: snapshot, at: entry.date, fontSize: 18)
+                    .minimumScaleFactor(0.7)
+                LiveCountdownText(snapshot: snapshot, at: entry.date, fontSize: 18, color: .primary)
+                    .widgetAccentable()
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(focusAccessibility(snapshot))
         }
     }
 
@@ -154,25 +169,29 @@ private struct LockScreenFocusView: View {
 
     @ViewBuilder
     private func ready(_ next: QueueWidgetNow) -> some View {
+        let spoken = QueueWidgetFormatting.nextTaskSpoken(title: next.title, duration: next.duration)
         switch family {
         case .accessoryCircular:
             Gauge(value: todayFraction) {
                 Text("Queue")
             }
             .gaugeStyle(.accessoryCircularCapacity)
-            .accessibilityLabel("\(entry.queue?.doneToday ?? 0) of \(entry.queue?.plannedToday ?? 0) done today")
+            .widgetAccentable()
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(todaySpoken). \(spoken)")
         case .accessoryInline:
             Text("Next: \(next.title)")
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .widgetAccentable()
+                .accessibilityLabel(spoken)
         default:
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Next: \(next.title)")
-                    .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Text(QueueWidgetFormatting.minutesLabel(next.duration))
-                    .font(.system(size: 12, weight: .medium).monospacedDigit())
-            }
-            .accessibilityLabel(QueueWidgetFormatting.nextTaskAccessibility(title: next.title, duration: next.duration))
+            Text(QueueWidgetFormatting.lockScreenNextLine(title: next.title, duration: next.duration))
+                .font(.system(size: 13, weight: .semibold))
+                .lineLimit(2)
+                .minimumScaleFactor(0.65)
+                .widgetAccentable()
+                .accessibilityLabel(spoken)
         }
     }
 
@@ -180,13 +199,45 @@ private struct LockScreenFocusView: View {
     private var empty: some View {
         switch family {
         case .accessoryCircular:
-            Image(systemName: "leaf.fill")
+            Text(chrome == .empty ? "Clear" : "Queue")
+                .font(.system(size: 12, weight: .semibold))
+                .minimumScaleFactor(0.5)
+                .widgetAccentable()
+                .accessibilityLabel(chrome == .empty ? "Queue is clear" : "Open Queue")
         case .accessoryInline:
-            Text(chrome == .empty ? "Queue is clear" : "Queue")
+            Text(chrome == .empty ? "Queue is clear" : "Open Queue")
+                .widgetAccentable()
         default:
             Text(chrome == .empty ? "Queue is clear" : "Open Queue")
                 .font(.headline)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .widgetAccentable()
         }
+    }
+
+    private func focusAccessibility(_ snapshot: FocusWidgetSnapshot) -> String {
+        let status: String
+        switch snapshot.session.state {
+        case .paused:
+            status = "paused"
+        case .expired:
+            status = "time's up"
+        default:
+            status = snapshot.remaining(at: entry.date) <= 0 ? "time's up" : "focusing"
+        }
+        return QueueWidgetFormatting.focusAccessibility(
+            title: snapshot.taskTitle,
+            status: status,
+            remaining: snapshot.remaining(at: entry.date)
+        )
+    }
+
+    private var todaySpoken: String {
+        QueueWidgetFormatting.todayAccessibility(
+            done: entry.queue?.doneToday ?? 0,
+            planned: entry.queue?.plannedToday ?? 0
+        )
     }
 
     private var todayFraction: Double {
@@ -196,50 +247,136 @@ private struct LockScreenFocusView: View {
     }
 }
 
-// MARK: - Widget-local visuals
+// MARK: - Rendering
+
+/// Full color uses the dark column of `QueueColors`. Accented (tinted and clear)
+/// and vibrant (Lock Screen) leave the system to tint hierarchical styles.
+struct WidgetPalette {
+    var mode: WidgetRenderingMode
+
+    var fullColor: Bool { mode == .fullColor }
+
+    var textPrimary: Color { fullColor ? QueueColors.dark(.textPrimary) : .primary }
+    var textSecondary: Color { fullColor ? QueueColors.dark(.textSecondary) : .secondary }
+    /// Honey, from the shared catalog. Text on a honey fill uses `QueueColors.dark(.onAccent)` (forest).
+    var accent: Color { fullColor ? QueueColors.dark(.accent) : .primary }
+    var onPrimary: Color { fullColor ? QueueColors.dark(.onPrimary) : .primary }
+    var background: Color { QueueColors.dark(.background) }
+
+    var primaryFill: Color {
+        fullColor ? QueueColors.dark(.primary) : Color.primary.opacity(0.22)
+    }
+
+    var secondaryFill: Color {
+        fullColor ? QueueColors.dark(.surface) : Color.primary.opacity(0.12)
+    }
+
+    var track: Color {
+        fullColor ? QueueColors.dark(.textPrimary).opacity(0.18) : Color.primary.opacity(0.2)
+    }
+}
+
+/// Pins the dark column while a widget is full color. Tinted, clear, and vibrant keep the system scheme.
+struct WidgetFullColorScheme: ViewModifier {
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if renderingMode == .fullColor {
+            content.environment(\.colorScheme, .dark)
+        } else {
+            content
+        }
+    }
+}
 
 enum WidgetCompanionState {
     case idle, working, paused, expired
 }
 
+/// Static companion frames. Animation stays out of the widget.
+enum WidgetCompanionPose {
+    case idle
+    case working
+    case done
+
+    var assetName: String {
+        switch self {
+        case .idle: return "CompanionIdle"
+        case .working: return "CompanionWorking"
+        case .done: return "CompanionDone"
+        }
+    }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .idle: return "Companion resting"
+        case .working: return "Companion focusing"
+        case .done: return "Companion finished"
+        }
+    }
+
+    static func pose(for state: WidgetCompanionState) -> WidgetCompanionPose {
+        switch state {
+        case .idle, .paused: return .idle
+        case .working: return .working
+        case .expired: return .done
+        }
+    }
+}
+
 struct WidgetCompanionBadge: View {
     let state: WidgetCompanionState
     let progress: Double
+    var diameter: CGFloat = 52
+
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
+    private var palette: WidgetPalette { WidgetPalette(mode: renderingMode) }
+    private var pose: WidgetCompanionPose { WidgetCompanionPose.pose(for: state) }
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(QueueColors.dark(.textPrimary).opacity(0.18), lineWidth: 3)
+                .stroke(palette.track, lineWidth: max(CGFloat(2), diameter * 0.06))
             Circle()
                 .trim(from: 0, to: CGFloat(min(1, max(0, progress))))
-                .stroke(QueueColors.dark(.accent), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(
+                    palette.accent,
+                    style: StrokeStyle(lineWidth: max(CGFloat(2), diameter * 0.06), lineCap: .round)
+                )
                 .rotationEffect(.degrees(-90))
-
-            ZStack {
-                Capsule()
-                    .fill(QueueColors.dark(.primary).opacity(0.9))
-                    .frame(width: 28, height: 4)
-                    .offset(y: 12)
-                Circle()
-                    .fill(QueueColors.dark(.textPrimary))
-                    .frame(width: 14, height: 14)
-                    .offset(y: -4)
-                Capsule()
-                    .fill(QueueColors.dark(.textPrimary))
-                    .frame(width: 18, height: 12)
-                    .offset(y: 6)
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(QueueColors.dark(.background))
-                    .frame(width: 12, height: 7)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 0.5)
-                            .fill(QueueColors.dark(.accent).opacity(state == .working ? 0.7 : 0.25))
-                            .padding(1.5)
-                    )
-                    .offset(y: 5)
-            }
+                .widgetAccentable()
+            companionImage
+                .padding(diameter * 0.08)
         }
-        .frame(width: 52, height: 52)
+        .frame(width: diameter, height: diameter)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var accessibilityText: String {
+        switch state {
+        case .paused: return "Companion paused"
+        default: return pose.accessibilityLabel
+        }
+    }
+
+    @ViewBuilder
+    private var companionImage: some View {
+        if #available(iOS 18.0, *) {
+            // Apply while the value is still an Image. Luminance survives tinted and clear styles.
+            Image(pose.assetName)
+                .resizable()
+                .interpolation(.high)
+                .widgetAccentedRenderingMode(.accentedDesaturated)
+                .scaledToFit()
+        } else {
+            Image(pose.assetName)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+        }
     }
 }
 
@@ -268,20 +405,35 @@ extension QueueWidgetSnapshot {
 
 extension FocusWidgetSnapshot {
     static var placeholder: FocusWidgetSnapshot {
-        let now = Date()
-        let session = FocusSession(
-            taskID: UUID(),
-            sessionStart: now,
-            segmentStart: now,
-            plannedDuration: 25 * 60,
-            state: .running
-        )
-        return FocusWidgetSnapshot(
-            taskID: session.taskID,
-            taskTitle: "Ship the focus timer",
-            difficultyDisplayName: "Medium",
-            estimatedDuration: 25 * 60,
-            session: session
+        galleryPlaceholder()
+    }
+
+    static func preview(state: FocusTimerState, at now: Date = Date()) -> FocusWidgetSnapshot {
+        var snapshot = galleryPlaceholder(at: now)
+        snapshot.session.state = state
+        switch state {
+        case .paused:
+            snapshot.session.accumulatedActive = 5 * 60
+            snapshot.session.segmentStart = now
+        case .expired:
+            snapshot.session.accumulatedActive = snapshot.session.plannedDuration
+            snapshot.session.segmentStart = now
+        case .running, .idle, .completed:
+            break
+        }
+        return snapshot
+    }
+}
+
+extension QueueWidgetSnapshot {
+    static var previewEmpty: QueueWidgetSnapshot {
+        QueueWidgetSnapshot(
+            now: nil,
+            upNext: [],
+            doneToday: 0,
+            plannedToday: 0,
+            minutesFocusedToday: 0,
+            updatedAt: Date()
         )
     }
 }
@@ -289,14 +441,70 @@ extension FocusWidgetSnapshot {
 struct FocusTimerWidget_Previews: PreviewProvider {
     static var previews: some View {
         Group {
-            FocusTimerWidgetView(entry: FocusTimerEntry(date: .now, focus: nil, queue: .previewReady))
-                .previewContext(WidgetPreviewContext(family: .systemSmall))
-            FocusTimerWidgetView(entry: FocusTimerEntry(date: .now, focus: nil, queue: .previewReady))
-                .previewContext(WidgetPreviewContext(family: .systemMedium))
-            FocusTimerWidgetView(entry: FocusTimerEntry(date: .now, focus: nil, queue: .previewReady))
-                .previewContext(WidgetPreviewContext(family: .systemLarge))
-            FocusTimerWidgetView(entry: FocusTimerEntry(date: .now, focus: .placeholder, queue: .previewReady))
-                .previewContext(WidgetPreviewContext(family: .systemMedium))
+            Group {
+                home(.ready, .systemSmall)
+                home(.ready, .systemMedium)
+                home(.ready, .systemLarge)
+                home(.focusing, .systemSmall)
+                home(.focusing, .systemMedium)
+                home(.focusing, .systemLarge)
+                home(.paused, .systemMedium)
+                home(.expired, .systemLarge)
+                home(.empty, .systemSmall)
+                home(.needsLaunch, .systemMedium)
+            }
+            Group {
+                home(.ready, .systemMedium)
+                    .environment(\.colorScheme, .light)
+                home(.ready, .systemMedium)
+                    .environment(\.colorScheme, .dark)
+                home(.focusing, .systemMedium)
+                    .environment(\.widgetRenderingMode, .accented)
+                home(.ready, .systemLarge)
+                    .environment(\.widgetRenderingMode, .accented)
+                lock(.ready, .accessoryRectangular)
+                lock(.ready, .accessoryInline)
+                lock(.ready, .accessoryCircular)
+                lock(.focusing, .accessoryRectangular)
+                    .environment(\.widgetRenderingMode, .vibrant)
+                lock(.focusing, .accessoryCircular)
+                    .environment(\.widgetRenderingMode, .vibrant)
+                lock(.empty, .accessoryRectangular)
+                    .environment(\.widgetRenderingMode, .vibrant)
+            }
+            lock(.focusing, .accessoryInline)
+                .environment(\.widgetRenderingMode, .vibrant)
         }
+    }
+
+    private enum Sample {
+        case needsLaunch, empty, ready, focusing, paused, expired
+    }
+
+    private static func entry(_ sample: Sample) -> FocusTimerEntry {
+        switch sample {
+        case .needsLaunch:
+            return FocusTimerEntry(date: .now, focus: nil, queue: nil)
+        case .empty:
+            return FocusTimerEntry(date: .now, focus: nil, queue: .previewEmpty)
+        case .ready:
+            return FocusTimerEntry(date: .now, focus: nil, queue: .previewReady)
+        case .focusing:
+            return FocusTimerEntry(date: .now, focus: .placeholder, queue: .previewReady)
+        case .paused:
+            return FocusTimerEntry(date: .now, focus: .preview(state: .paused), queue: .previewReady)
+        case .expired:
+            return FocusTimerEntry(date: .now, focus: .preview(state: .expired), queue: .previewReady)
+        }
+    }
+
+    private static func home(_ sample: Sample, _ family: WidgetFamily) -> some View {
+        FocusTimerWidgetView(entry: entry(sample))
+            .previewContext(WidgetPreviewContext(family: family))
+    }
+
+    private static func lock(_ sample: Sample, _ family: WidgetFamily) -> some View {
+        LockScreenFocusView(entry: entry(sample))
+            .previewContext(WidgetPreviewContext(family: family))
     }
 }

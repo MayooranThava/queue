@@ -102,6 +102,31 @@ struct QueuePaletteTests {
         }
     }
 
+    @Test func widgetCompanionStillsMatchTheAtlasFrames() throws {
+        let root = repoRoot()
+        let pairs = [
+            ("CompanionIdle", "Queue/Resources/Atlases/Working.atlas/working_006.png"),
+            ("CompanionWorking", "Queue/Resources/Atlases/Typing.atlas/typing_010.png"),
+            ("CompanionDone", "Queue/Resources/Atlases/Completed.atlas/completed_011.png")
+        ]
+        for (name, source) in pairs {
+            let image = root
+                .appendingPathComponent("Shared/CompanionStills.xcassets/\(name).imageset")
+                .appendingPathComponent("\(name).png")
+            let original = try Data(contentsOf: root.appendingPathComponent(source))
+            let shipped = try Data(contentsOf: image)
+            #expect(shipped == original, "\(name) should stay the atlas frame \(source)")
+            let header = try pngHeader(shipped)
+            #expect(header.width == 768)
+            #expect(header.height == 768)
+            #expect(header.colorType == 6, "\(name) needs an alpha channel for tinted widgets")
+        }
+        let project = try String(contentsOf: root.appendingPathComponent("project.yml"), encoding: .utf8)
+        #expect(project.contains("Shared/CompanionStills.xcassets"))
+        let pbx = try String(contentsOf: root.appendingPathComponent("Queue.xcodeproj/project.pbxproj"), encoding: .utf8)
+        #expect(pbx.contains("Shared/CompanionStills.xcassets"))
+    }
+
     @Test func appIconsAreOpaque1024Squares() throws {
         let root = repoRoot()
         let names = ["AppIcon.png", "AppIcon-Dark.png", "AppIcon-Tinted.png"]

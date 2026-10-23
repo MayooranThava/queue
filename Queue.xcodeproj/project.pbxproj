@@ -16,6 +16,7 @@
 		E4C0A11B22C34D5E6F708192 /* QueueColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9BBA8AE76264961BD4C0ABE /* QueueColors.swift */; };
 		F5D1B22C33D44E6F708192A4 /* QueueColors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F5D1B22C33D44E6F708192A3 /* QueueColors.xcassets */; };
 		F5D1B22C33D44E6F708192A5 /* QueueColors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F5D1B22C33D44E6F708192A3 /* QueueColors.xcassets */; };
+		E7C0A11B22C34D5E6F7081A2 /* CompanionStills.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E7C0A11B22C34D5E6F7081A1 /* CompanionStills.xcassets */; };
 		A6E2C33D44E54F708192A3B5 /* QueueColorResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E2C33D44E54F708192A3B4 /* QueueColorResolutionTests.swift */; };
 		4C8794BEB26F4EBFA832A664 /* QueueMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DA669D212024628A9D278DD /* QueueMotion.swift */; };
 		FB794DDEF22043D6B595E278 /* QueueSpacing.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDB9E548781D4868895BF34D /* QueueSpacing.swift */; };
@@ -81,6 +82,7 @@
 		C704F476FFE7423C845B4210 /* QueueTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QueueTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		74B27F8B9DD64C5BBCDC7641 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Queue/Resources/Assets.xcassets; sourceTree = SOURCE_ROOT; };
 		F5D1B22C33D44E6F708192A3 /* QueueColors.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = QueueColors.xcassets; path = Shared/QueueColors.xcassets; sourceTree = SOURCE_ROOT; };
+		E7C0A11B22C34D5E6F7081A1 /* CompanionStills.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = CompanionStills.xcassets; path = Shared/CompanionStills.xcassets; sourceTree = SOURCE_ROOT; };
 		D6F29185DA434A4A9F5DD92D /* Completed.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Completed.atlas; path = Queue/Resources/Atlases/Completed.atlas; sourceTree = SOURCE_ROOT; };
 		CFE87CA2D2EB4E0E992A7848 /* DeepFocus.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DeepFocus.atlas; path = Queue/Resources/Atlases/DeepFocus.atlas; sourceTree = SOURCE_ROOT; };
 		52942B57E66F4C9396DC3475 /* Expired.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Expired.atlas; path = Queue/Resources/Atlases/Expired.atlas; sourceTree = SOURCE_ROOT; };
@@ -161,7 +163,7 @@
 		};
 		C51465B486414A078E83D59F /* Shared */ = {
 			isa = PBXGroup;
-			children = (932526B2C016439DACD79FF0, C465F6DF30474F5BAC376588, 4C69BEA8506F48DFBC38EC65, A11A00112233445566778805, A11A00112233445566778808, C9BBA8AE76264961BD4C0ABE, F5D1B22C33D44E6F708192A3);
+			children = (932526B2C016439DACD79FF0, C465F6DF30474F5BAC376588, 4C69BEA8506F48DFBC38EC65, A11A00112233445566778805, A11A00112233445566778808, C9BBA8AE76264961BD4C0ABE, F5D1B22C33D44E6F708192A3, E7C0A11B22C34D5E6F7081A1);
 			name = Shared;
 			sourceTree = "<group>";
 		};
@@ -222,7 +224,7 @@
 		F5D1B22C33D44E6F708192A6 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (F5D1B22C33D44E6F708192A5);
+			files = (F5D1B22C33D44E6F708192A5, E7C0A11B22C34D5E6F7081A2);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		BC99EABB761C45A1A6F40FA8 /* Frameworks */ = {
