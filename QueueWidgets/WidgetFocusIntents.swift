@@ -62,15 +62,15 @@ enum WidgetIntentRunner {
         }
         guard AppGroupStoreLocation.widgetMayOpenStore() else { return }
 
-        let container = AppModelContainer.make(migrateLegacyStore: false)
-        let context = ModelContext(container)
-        let scheduler = SystemFocusEndNotificationScheduler.shared
-        let repository = TaskRepository(
-            context: context,
-            focusNotifications: scheduler,
-            notificationAuthorizer: scheduler
-        )
         do {
+            let container = try AppModelContainer.makePersistent(migrateLegacyStore: false)
+            let context = ModelContext(container)
+            let scheduler = SystemFocusEndNotificationScheduler.shared
+            let repository = TaskRepository(
+                context: context,
+                focusNotifications: scheduler,
+                notificationAuthorizer: scheduler
+            )
             try await repository.bootstrapFromStore()
             try await WidgetFocusIntentPerformer.perform(
                 command,

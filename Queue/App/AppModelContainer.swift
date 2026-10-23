@@ -1,39 +1,99 @@
-import SwiftData
 import Foundation
+import os
 import QueueCore
+import SwiftData
 
+private let logger = Logger(subsystem: "com.queueapp.Queueup", category: "persistence")
+
+/// Opens the on-disk SwiftData store shared by the app, widgets, and App Intents.
+///
+/// The live file is `QueueLocalStore.store` in the App Group
+/// `group.com.queueapp.Queueup`. The first app launch copies the pre-App-Group
+/// sandbox file (TestFlight) into that location and leaves the original in place.
+/// If the App Group is unavailable, the opener falls back to that sandbox file.
+///
+/// Every persistent container uses `QueueSchemaV1` and `QueueMigrationPlan`.
+/// Nothing here substitutes an in-memory store. `makeInMemory()` is only for
+/// previews and tests.
 enum AppModelContainer {
-    /// `migrateLegacyStore` is true for the app, which can still see the pre-App-Group file.
-    /// The widget passes false so it never creates an empty store ahead of that copy.
-    static func make(migrateLegacyStore: Bool = true) -> ModelContainer {
-        let schema = Schema([
-            TaskEntity.self,
-            FocusSessionEntity.self,
-            XPTransactionEntity.self,
-            UserPreferencesEntity.self
-        ])
-        let configuration: ModelConfiguration
+    /// Configuration name. Also the on-disk store name for the sandbox fallback.
+    static let storeName = "QueueLocalStore"
+
+    static let schema = Schema(versionedSchema: QueueSchemaV1.self)
+
+    enum OpenResult {
+        case ready(ModelContainer)
+        case failed(Error)
+    }
+
+    /// App launch. Copies the legacy sandbox store into the App Group once.
+    ///
+    /// A failure is returned to the caller. This never substitutes an in-memory
+    /// store and never deletes the caller's store file.
+    static func open(storeURL: URL? = nil) -> OpenResult {
+        do {
+            return .ready(try makePersistent(migrateLegacyStore: storeURL == nil, storeURL: storeURL))
+        } catch {
+            let description = String(describing: error)
+            logger.error("Failed to open \(storeName, privacy: .public): \(description, privacy: .public)")
+            return .failed(error)
+        }
+    }
+
+    /// On-disk container.
+    ///
+    /// `storeURL` overrides the location for tests. The app passes nil so the
+    /// shared App Group file is used. Widgets and App Intents pass
+    /// `migrateLegacyStore: false` so they never create that file ahead of the
+    /// app's copy.
+    static func makePersistent(migrateLegacyStore: Bool = true, storeURL: URL? = nil) throws -> ModelContainer {
+        try ModelContainer(
+            for: schema,
+            migrationPlan: QueueMigrationPlan.self,
+            configurations: [persistentConfiguration(migrateLegacyStore: migrateLegacyStore, storeURL: storeURL)]
+        )
+    }
+
+    /// Explicit in-memory store for previews and tests. Not used at launch,
+    /// and not used by widgets or App Intents.
+    static func makeInMemory() throws -> ModelContainer {
+        let configuration = ModelConfiguration(
+            "QueuePreviewStore",
+            schema: schema,
+            isStoredInMemoryOnly: true
+        )
+        return try ModelContainer(
+            for: schema,
+            migrationPlan: QueueMigrationPlan.self,
+            configurations: [configuration]
+        )
+    }
+
+    /// Disk configuration. An explicit `storeURL` wins. Otherwise this is the
+    /// App Group file, or the historical sandbox store when that container is missing.
+    static func persistentConfiguration(migrateLegacyStore: Bool = true, storeURL: URL? = nil) -> ModelConfiguration {
+        if let storeURL {
+            return ModelConfiguration(
+                storeName,
+                schema: schema,
+                url: storeURL,
+                cloudKitDatabase: .none
+            )
+        }
         if let url = AppGroupStoreLocation.prepareStoreURL(migrateLegacy: migrateLegacyStore) {
-            configuration = ModelConfiguration(
-                "QueueLocalStore",
+            return ModelConfiguration(
+                storeName,
                 schema: schema,
                 url: url,
                 cloudKitDatabase: .none
             )
-        } else {
-            configuration = ModelConfiguration(
-                "QueueLocalStore",
-                schema: schema,
-                isStoredInMemoryOnly: false
-            )
         }
-        do {
-            return try ModelContainer(for: schema, configurations: [configuration])
-        } catch {
-            // Recoverable fallback for corrupted local store during development.
-            let memory = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-            return try! ModelContainer(for: schema, configurations: [memory])
-        }
+        return ModelConfiguration(
+            storeName,
+            schema: schema,
+            isStoredInMemoryOnly: false,
+            cloudKitDatabase: .none
+        )
     }
 }
 
@@ -55,6 +115,8 @@ enum AppGroupStoreLocation {
         do {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         } catch {
+            let description = String(describing: error)
+            logger.error("Failed to create the App Group store directory: \(description, privacy: .public)")
             return nil
         }
 
@@ -72,6 +134,8 @@ enum AppGroupStoreLocation {
                     try copyStore(from: legacy, to: destination)
                 } catch {
                     // Leave the marker unset and keep the sandbox store so the next launch can retry.
+                    let description = String(describing: error)
+                    logger.error("Failed to copy the legacy store into the App Group: \(description, privacy: .public)")
                     return nil
                 }
             }

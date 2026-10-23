@@ -9,7 +9,7 @@ struct SharedStoreDump {
 
     @MainActor
     static func load() throws -> SharedStoreDump {
-        let container = AppModelContainer.make(migrateLegacyStore: false)
+        let container = try AppModelContainer.makePersistent(migrateLegacyStore: false)
         let context = ModelContext(container)
         let tasks = try context.fetch(FetchDescriptor<TaskEntity>()).map { $0.asDomain() }
         let sessions = FetchDescriptor<FocusSessionEntity>(
