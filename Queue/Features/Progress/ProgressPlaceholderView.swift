@@ -4,13 +4,14 @@ import QueueCore
 struct ProgressPlaceholderView: View {
     @EnvironmentObject private var services: AppServices
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.queueTheme) private var queueTheme
     @State private var animatedFraction: Double = 0
 
     var body: some View {
         let progress = LevelTable.progress(towardNext: services.totalXP)
 
         ZStack {
-            QueueColors.background.ignoresSafeArea()
+            QueueThemeBackground()
             ScrollView {
                 VStack(alignment: .leading, spacing: QueueSpacing.lg) {
                     VStack(alignment: .leading, spacing: QueueSpacing.xs) {
@@ -43,7 +44,7 @@ struct ProgressPlaceholderView: View {
                                 Capsule()
                                     .fill(QueueColors.surface)
                                 Capsule()
-                                    .fill(QueueColors.accent)
+                                    .fill(QueueColors.rewardMark)
                                     .frame(width: proxy.size.width * animatedFraction)
                             }
                         }
@@ -74,6 +75,7 @@ struct ProgressPlaceholderView: View {
             }
         }
         .navigationTitle("Progress")
+        .environment(\.queueTheme, queueTheme)
         .task {
             await services.refreshXP()
             let fraction = LevelTable.progress(towardNext: services.totalXP).fraction

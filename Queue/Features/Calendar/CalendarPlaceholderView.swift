@@ -1,9 +1,11 @@
 import SwiftUI
 
 struct CalendarPlaceholderView: View {
+    @Environment(\.queueTheme) private var queueTheme
+
     var body: some View {
         ZStack {
-            QueueColors.background.ignoresSafeArea()
+            QueueThemeBackground()
             VStack(spacing: QueueSpacing.md) {
                 Image(systemName: "calendar")
                     .font(.system(size: 36, weight: .light))
@@ -19,5 +21,6 @@ struct CalendarPlaceholderView: View {
             }
         }
         .navigationTitle("Calendar")
+        .environment(\.queueTheme, queueTheme)
     }
 }

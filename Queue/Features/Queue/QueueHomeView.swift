@@ -6,6 +6,7 @@ struct QueueHomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.queueTheme) private var queueTheme
     @EnvironmentObject private var services: AppServices
     @Query(sort: [
         SortDescriptor(\TaskEntity.queuePosition),
@@ -59,7 +60,7 @@ struct QueueHomeView: View {
 
     var body: some View {
         ZStack {
-            QueueColors.background.ignoresSafeArea()
+            QueueThemeBackground()
 
             Group {
                 if activeTasks.isEmpty {
@@ -98,16 +99,19 @@ struct QueueHomeView: View {
             AddEditTaskView { draft in
                 await createTask(draft)
             }
+            .environment(\.queueTheme, queueTheme)
         }
         .sheet(item: $editingTask) { task in
             AddEditTaskView(existing: task) { draft in
                 await updateTask(task, draft: draft)
             }
+            .environment(\.queueTheme, queueTheme)
         }
         .fullScreenCover(item: $focusTask, onDismiss: {
             Task { await services.refreshFocusSnapshot() }
         }) { task in
             FocusSessionView(task: task)
+                .environment(\.queueTheme, queueTheme)
         }
         .alert("Something went wrong", isPresented: Binding(
             get: { errorMessage != nil },
@@ -160,6 +164,7 @@ struct QueueHomeView: View {
                 undoBanner(title: undoTitle)
             }
         }
+        .environment(\.queueTheme, queueTheme)
     }
 
     private func openFocusFromDeepLinkIfNeeded() {
@@ -563,6 +568,7 @@ private struct ActiveTaskStackBlock: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.queueCompanionVisible) private var companionVisible
+    @Environment(\.queueTheme) private var queueTheme
 
     private var isAlreadyFocusing: Bool {
         focusSnapshot != nil
@@ -648,6 +654,7 @@ private struct ActiveTaskStackBlock: View {
         .contentShape(Rectangle())
         .modifier(QueueBlockInteractions(menu: menu))
         .accessibilityElement(children: .contain)
+        .environment(\.queueTheme, queueTheme)
     }
 
     private var companionBadge: some View {
@@ -734,6 +741,7 @@ private struct UpcomingTaskStackBlock: View {
     let listMode: Bool
     let menu: QueueBlockMenu
     var onTap: () -> Void
+    @Environment(\.queueTheme) private var queueTheme
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -778,6 +786,7 @@ private struct UpcomingTaskStackBlock: View {
                 : "Double tap to edit. Long press to reorder, skip, or delete."
         )
         .accessibilityAction(.default) { onTap() }
+        .environment(\.queueTheme, queueTheme)
     }
 
     private var subtitle: String {

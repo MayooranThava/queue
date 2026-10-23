@@ -64,6 +64,25 @@ extension EnvironmentValues {
     }
 }
 
+/// The selected theme, shared with widgets and Live Activity through the App Group.
+@MainActor
+final class QueueThemeSelection: ObservableObject {
+    @Published private(set) var theme: QueueTheme
+
+    init() {
+        theme = QueueThemeStore.current()
+    }
+
+    func select(_ theme: QueueTheme) {
+        guard theme != self.theme else { return }
+        QueueThemeStore.save(theme)
+        self.theme = theme
+        QueueWidgetReload.reload()
+        let snapshot = FocusActivityStore.load()
+        Task { await FocusLiveActivityController.shared.sync(snapshot: snapshot) }
+    }
+}
+
 /// Opens this app's page in iOS Settings.
 @MainActor
 enum AppSettingsLink {

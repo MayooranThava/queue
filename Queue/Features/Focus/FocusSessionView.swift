@@ -7,6 +7,7 @@ struct FocusSessionView: View {
     let task: QueueTask
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.queueTheme) private var queueTheme
     @Environment(\.queueCompanionVisible) private var companionVisible
     @EnvironmentObject private var services: AppServices
 
@@ -20,7 +21,7 @@ struct FocusSessionView: View {
 
     var body: some View {
         ZStack {
-            QueueColors.background.ignoresSafeArea()
+            QueueThemeBackground()
 
             if let completionOutcome {
                 CompletionCelebrationView(
@@ -36,6 +37,7 @@ struct FocusSessionView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .environment(\.queueTheme, queueTheme)
         .task {
             await bootstrapFocus()
         }
@@ -135,7 +137,7 @@ struct FocusSessionView: View {
         if let session, session.state == .expired {
             Text("Time’s up — finish when you’re ready")
                 .font(QueueTypography.caption())
-                .foregroundStyle(QueueColors.accent)
+                .foregroundStyle(QueueColors.rewardMark)
                 .transition(.opacity)
         } else if session?.state == .paused {
             Text("Paused")

@@ -5,6 +5,7 @@ import QueueCore
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.queueTheme) private var queueTheme
     @EnvironmentObject private var services: AppServices
     @Query private var preferences: [UserPreferencesEntity]
     @AppStorage("showPlannedStartTimes") private var legacyShowPlannedStartTimes = false
@@ -20,7 +21,8 @@ struct RootView: View {
                 MainTabView()
             }
         }
-        .background(QueueColors.background.ignoresSafeArea())
+        .background(QueueColors.background)
+        .environment(\.queueTheme, queueTheme)
         .environment(\.queueCompanionVisible, preferences.first?.companionVisible ?? true)
         .environment(
             \.queueAnimationIntensity,

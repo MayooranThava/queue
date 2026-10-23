@@ -3,6 +3,7 @@ import QueueCore
 
 /// Skippable completion celebration — XP count-up, companion reaction, level fill.
 struct CompletionCelebrationView: View {
+    @Environment(\.queueTheme) private var queueTheme
     let outcome: FocusCompletionOutcome
     var onContinue: () -> Void
     var onSkip: () -> Void
@@ -75,7 +76,7 @@ struct CompletionCelebrationView: View {
             VStack(spacing: QueueSpacing.sm) {
                 Text("+\(displayedXP) XP")
                     .font(QueueTypography.display(44))
-                    .foregroundStyle(QueueColors.accent)
+                    .foregroundStyle(QueueColors.rewardMark)
                     .contentTransition(.numericText())
                     .accessibilityLabel("\(outcome.award.awardedXP) experience points earned")
 
@@ -122,6 +123,7 @@ struct CompletionCelebrationView: View {
         }
         .onAppear { runEntrance() }
         .onDisappear { levelFillTask?.cancel() }
+        .environment(\.queueTheme, queueTheme)
     }
 
     private var levelBar: some View {
@@ -142,7 +144,7 @@ struct CompletionCelebrationView: View {
                     Capsule()
                         .fill(QueueColors.surface)
                     Capsule()
-                        .fill(QueueColors.accent)
+                        .fill(QueueColors.rewardMark)
                         .frame(width: proxy.size.width * levelFill)
                 }
             }

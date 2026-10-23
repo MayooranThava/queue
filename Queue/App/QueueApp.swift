@@ -1,10 +1,12 @@
 import SwiftUI
 import SwiftData
+import QueueCore
 
 @main
 struct QueueApp: App {
     @State private var storeLaunch: AppModelContainer.OpenResult
     @StateObject private var services: AppServices
+    @StateObject private var themes = QueueThemeSelection()
 
     init() {
         // Install before the first scene so a tap on a focus alert is delivered on a cold launch.
@@ -28,6 +30,8 @@ struct QueueApp: App {
                 }
             }
             .environment(\.locale, .current)
+            .environmentObject(themes)
+            .environment(\.queueTheme, themes.theme)
             .onOpenURL(perform: handleOpenURL)
         }
     }

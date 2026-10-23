@@ -81,6 +81,7 @@ struct FocusLiveActivityWidget: Widget {
             )
         }
         .padding(16)
+        .environment(\.queueTheme, QueueThemeStore.current())
         .activityBackgroundTint(QueueColors.dark(.background))
         .activitySystemActionForegroundColor(QueueColors.dark(.textPrimary))
         .widgetURL(QueueDeepLink.focus)

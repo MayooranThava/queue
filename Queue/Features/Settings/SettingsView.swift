@@ -8,14 +8,20 @@ import QueueCore
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.queueTheme) private var queueTheme
     @EnvironmentObject private var services: AppServices
+    @EnvironmentObject private var themes: QueueThemeSelection
     @Query private var preferences: [UserPreferencesEntity]
     @AppStorage("showPlannedStartTimes") private var legacyShowPlannedStartTimes = false
+    @ScaledMetric(relativeTo: .body) private var swatchSize: CGFloat = 12
     @State private var notificationAuthorization: FocusNotificationAuthorization?
 
     var body: some View {
         List {
             companionSection
+            themeSection
             motivationSection
             tasksSection
             notificationsSection
@@ -23,7 +29,8 @@ struct SettingsView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(QueueColors.background.ignoresSafeArea())
+        .background(QueueColors.background)
+        .environment(\.queueTheme, queueTheme)
         .tint(QueueColors.primary)
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.large)
@@ -41,7 +48,7 @@ struct SettingsView: View {
                     .foregroundStyle(QueueColors.textPrimary)
             }
             .accessibilityHint("Hides the companion on Queue, Focus, and celebrations.")
-            .settingsRow()
+            .settingsRow(separator: separatorColor)
 
             Picker(selection: animationBinding) {
                 ForEach(AnimationIntensity.allCases) { intensity in
@@ -52,7 +59,7 @@ struct SettingsView: View {
                     .foregroundStyle(QueueColors.textPrimary)
             }
             .accessibilityHint(animationBinding.wrappedValue.summary)
-            .settingsRow()
+            .settingsRow(separator: separatorColor)
         } header: {
             settingsHeader("Companion")
         } footer: {
@@ -71,7 +78,7 @@ struct SettingsView: View {
                     .foregroundStyle(QueueColors.textPrimary)
             }
             .accessibilityHint(motivationBinding.wrappedValue.summary)
-            .settingsRow()
+            .settingsRow(separator: separatorColor)
         } header: {
             settingsHeader("Motivation")
         } footer: {
@@ -86,7 +93,7 @@ struct SettingsView: View {
                     .foregroundStyle(QueueColors.textPrimary)
             }
             .accessibilityHint("Shows a projected start on upcoming tasks.")
-            .settingsRow()
+            .settingsRow(separator: separatorColor)
 
             Stepper(value: dailyGoalBinding, in: DailyGoalCount.range) {
                 LabeledContent {
@@ -98,7 +105,7 @@ struct SettingsView: View {
                 }
             }
             .accessibilityHint("How many finished tasks count as a full day.")
-            .settingsRow()
+            .settingsRow(separator: separatorColor)
         } header: {
             settingsHeader("Tasks")
         } footer: {
@@ -126,7 +133,7 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint("Opens Queue in iOS Settings")
-            .settingsRow()
+            .settingsRow(separator: separatorColor)
         } header: {
             settingsHeader("Notifications")
         } footer: {
@@ -144,10 +151,93 @@ struct SettingsView: View {
                     .foregroundStyle(QueueColors.textPrimary)
             }
             .accessibilityElement(children: .combine)
-            .settingsRow()
+            .settingsRow(separator: separatorColor)
         } header: {
             settingsHeader("About")
         }
+    }
+
+    private var themeSection: some View {
+        Section {
+            ForEach(QueueTheme.all) { theme in
+                Button {
+                    themes.select(theme)
+                } label: {
+                    themeRow(theme)
+                }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(themeAccessibilityLabel(theme))
+                .accessibilityHint(theme.isPro ? "Pro theme. Unlocked." : "Free theme.")
+                .accessibilityAddTraits(.isButton)
+                .settingsRow(separator: separatorColor)
+            }
+        } header: {
+            settingsHeader("Theme")
+        } footer: {
+            settingsFooter("Used in the app, widgets, and Live Activity. Pro themes stay unlocked until a Pro tier exists.")
+        }
+    }
+
+    private func themeRow(_ theme: QueueTheme) -> some View {
+        let palette = colorScheme == .dark ? theme.dark : theme.light
+        let selected = themes.theme.id == theme.id
+        return HStack(spacing: QueueSpacing.sm) {
+            HStack(spacing: 3) {
+                swatch(palette.primary)
+                swatch(palette.accent)
+                swatch(palette.success)
+                swatch(palette.danger)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .background(Color(palette.background), in: Capsule())
+            .accessibilityHidden(true)
+
+            Text(theme.name)
+                .font(.body)
+                .foregroundStyle(QueueColors.textPrimary)
+            Spacer(minLength: QueueSpacing.sm)
+            if theme.isPro {
+                Text("Pro")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(QueueColors.onPrimary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(QueueColors.primary, in: Capsule())
+                    .accessibilityHidden(true)
+            }
+            if selected {
+                Image(systemName: "checkmark")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(QueueColors.primary)
+                    .accessibilityHidden(true)
+            }
+        }
+        .frame(minHeight: QueueSpacing.minTouch)
+    }
+
+    private func swatch(_ rgb: QueueRGB) -> some View {
+        Circle()
+            .fill(Color(rgb))
+            .frame(width: swatchSize, height: swatchSize)
+    }
+
+    private func themeAccessibilityLabel(_ theme: QueueTheme) -> String {
+        if themes.theme.id == theme.id {
+            return "\(theme.name) theme, selected"
+        }
+        return "\(theme.name) theme"
+    }
+
+    private var separatorColor: Color {
+        QueueColors.concrete(
+            .textSecondary,
+            theme: themes.theme,
+            scheme: colorScheme,
+            increasedContrast: contrast == .increased
+        )
+        .opacity(0.25)
     }
 
     private var companionBinding: Binding<Bool> {
@@ -235,8 +325,8 @@ struct SettingsView: View {
 }
 
 private extension View {
-    func settingsRow() -> some View {
-        listRowBackground(QueueColors.surface)
-            .listRowSeparatorTint(QueueColors.textSecondary.opacity(0.25))
+    func settingsRow(separator: Color) -> some View {
+        listRowBackground(Rectangle().fill(QueueColors.surface))
+            .listRowSeparatorTint(separator)
     }
 }
