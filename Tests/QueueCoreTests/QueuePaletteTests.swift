@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import QueueCore
 
 struct QueuePaletteTests {
     private struct Slot: Hashable {
@@ -25,6 +26,7 @@ struct QueuePaletteTests {
 
     @Test func approvedLightAndDarkValuesMatchThePalette() throws {
         let colors = try loadCatalog()
+        // Success and danger are the approved colour-vision pair.
         let approved: [String: (light: String, dark: String)] = [
             "Background": ("FAF7F0", "1A2617"),
             "Surface": ("EEF2EA", "263620"),
@@ -34,12 +36,38 @@ struct QueuePaletteTests {
             "OnPrimary": ("FAF7F0", "1A2617"),
             "Accent": ("E9A84E", "F0B85A"),
             "OnAccent": ("1F2A1B", "1A2617"),
-            "Success": ("3D6B37", "8FC27E"),
-            "Danger": ("A23B2E", "EC8A74")
+            "Success": ("34794B", "A3E0AB"),
+            "Danger": ("8F2A1E", "EB8370")
         ]
         for (role, pair) in approved {
             #expect(colors[role]?[Slot(dark: false, highContrast: false)] == pair.light, "\(role) light")
             #expect(colors[role]?[Slot(dark: true, highContrast: false)] == pair.dark, "\(role) dark")
+        }
+    }
+
+    @Test func forestThemeMatchesTheCatalogBaseColors() throws {
+        let colors = try loadCatalog()
+        let pairs: [(String, QueuePaletteRole)] = [
+            ("Background", .background),
+            ("Surface", .surface),
+            ("TextPrimary", .textPrimary),
+            ("TextSecondary", .textSecondary),
+            ("Primary", .primary),
+            ("OnPrimary", .onPrimary),
+            ("Accent", .accent),
+            ("OnAccent", .onAccent),
+            ("Success", .success),
+            ("Danger", .danger)
+        ]
+        for (name, role) in pairs {
+            #expect(
+                colors[name]?[Slot(dark: false, highContrast: false)] == QueueTheme.forest.light.color(for: role).hex,
+                "\(name) light"
+            )
+            #expect(
+                colors[name]?[Slot(dark: true, highContrast: false)] == QueueTheme.forest.dark.color(for: role).hex,
+                "\(name) dark"
+            )
         }
     }
 

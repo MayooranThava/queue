@@ -1,4 +1,5 @@
 import SwiftUI
+import QueueCore
 
 /// Date-anchored progress ring. Remaining fraction is derived from the session, never a tick counter.
 struct FocusCountdownRing: View {
@@ -9,13 +10,15 @@ struct FocusCountdownRing: View {
     /// Focus uses a heavier stroke. The stack's live card passes a thinner one.
     var lineWidth: CGFloat = 6
 
+    @Environment(\.queueTheme) private var queueTheme
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
     @State private var pulse = false
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(QueueColors.textPrimary.opacity(0.18), lineWidth: lineWidth)
+                .stroke(color(.textPrimary).opacity(0.18), lineWidth: lineWidth)
 
             Circle()
                 .trim(from: 0, to: CGFloat(min(1, max(0, progress))))
@@ -44,14 +47,24 @@ struct FocusCountdownRing: View {
         .accessibilityHidden(true)
     }
 
-    /// Honey reads on the dark column. Light surfaces use terracotta so the stroke stays visible.
+    /// Honey reads on the dark column. Light surfaces use primary so the stroke stays visible.
     private var progressColor: Color {
-        colorScheme == .dark ? QueueColors.accent : QueueColors.primary
+        color(colorScheme == .dark ? .accent : .primary)
+    }
+
+    private func color(_ role: QueueColorRole) -> Color {
+        QueueColors.concrete(
+            role,
+            theme: queueTheme,
+            scheme: colorScheme,
+            increasedContrast: contrast == .increased
+        )
     }
 
     private var ringColors: [Color] {
         if isPaused {
-            return [QueueColors.textSecondary, QueueColors.textSecondary]
+            let paused = color(.textSecondary)
+            return [paused, paused]
         }
         return [progressColor.opacity(0.85), progressColor]
     }

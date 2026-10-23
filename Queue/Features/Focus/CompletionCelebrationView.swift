@@ -3,6 +3,7 @@ import QueueCore
 
 /// Skippable completion celebration — XP count-up, companion reaction, level fill.
 struct CompletionCelebrationView: View {
+    @Environment(\.queueTheme) private var queueTheme
     let outcome: FocusCompletionOutcome
     var offer: NextBlockOffer?
     var autoStartStartedAt: Date?
@@ -96,7 +97,7 @@ struct CompletionCelebrationView: View {
                         VStack(spacing: QueueSpacing.sm) {
                             Text("+\(displayedXP) XP")
                                 .font(QueueTypography.display(44))
-                                .foregroundStyle(QueueColors.accent)
+                                .foregroundStyle(QueueColors.rewardMark)
                                 .contentTransition(.numericText())
                                 .accessibilityLabel("\(outcome.award.awardedXP) experience points earned")
 
@@ -142,6 +143,7 @@ struct CompletionCelebrationView: View {
         }
         .onAppear { runEntrance() }
         .onDisappear { levelFillTask?.cancel() }
+        .environment(\.queueTheme, queueTheme)
         .task(id: autoStartStartedAt) {
             await runAutoStartCountdown()
         }
@@ -199,7 +201,7 @@ struct CompletionCelebrationView: View {
                     .accessibilityLabel(status)
                 Button(NextBlockCopy.cancelAutoStartTitle, action: onCancelAutoStart)
                     .font(QueueTypography.headline(17))
-                    .foregroundStyle(QueueColors.accent)
+                    .foregroundStyle(QueueColors.rewardMark)
                     .frame(minHeight: QueueSpacing.minTouch)
                     .accessibilityHint("Stays on this celebration")
             }
@@ -231,7 +233,7 @@ struct CompletionCelebrationView: View {
                     Capsule()
                         .fill(QueueColors.surface)
                     Capsule()
-                        .fill(QueueColors.accent)
+                        .fill(QueueColors.rewardMark)
                         .frame(width: proxy.size.width * levelFill)
                 }
             }

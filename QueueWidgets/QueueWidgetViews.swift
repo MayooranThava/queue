@@ -26,6 +26,7 @@ struct FocusTimerWidgetView: View {
             }
         }
         .dynamicTypeSize(.xSmall ... .accessibility2)
+        .environment(\.queueTheme, QueueThemeStore.current())
         // Background stays in the container so tinted, clear, and StandBy can remove it.
         .containerBackground(for: .widget) {
             renderingMode == .fullColor ? palette.background : Color.clear

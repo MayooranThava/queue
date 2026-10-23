@@ -84,6 +84,7 @@ private struct FocusLiveActivityLockScreen: View {
             }
         }
         .environment(\.colorScheme, .dark)
+        .environment(\.queueTheme, QueueThemeStore.current())
         .activityBackgroundTint(QueueColors.dark(.background))
         .activitySystemActionForegroundColor(QueueColors.dark(.textPrimary))
         .widgetURL(QueueDeepLink.focus)
@@ -255,14 +256,26 @@ private struct LiveActivityCompanionRing: View {
     var diameter: CGFloat
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
 
     private var lineWidth: CGFloat { max(2.5, diameter * 0.08) }
 
     /// Terracotta while running or in light mode. Honey only finishes a dark ring.
     private var ringColor: Color {
-        FocusActivityChrome.ringUsesHoney(isComplete: isComplete, isDark: colorScheme == .dark)
-            ? QueueColors.accent
-            : QueueColors.primary
+        let role: QueueColorRole = FocusActivityChrome.ringUsesHoney(
+            isComplete: isComplete,
+            isDark: colorScheme == .dark
+        ) ? .accent : .primary
+        return palette(role)
+    }
+
+    private func palette(_ role: QueueColorRole) -> Color {
+        QueueColors.concrete(
+            role,
+            theme: QueueThemeStore.current(),
+            scheme: colorScheme,
+            increasedContrast: contrast == .increased
+        )
     }
 
     var body: some View {
@@ -272,6 +285,7 @@ private struct LiveActivityCompanionRing: View {
                 .padding(diameter * 0.16)
         }
         .frame(width: diameter, height: diameter)
+        .environment(\.queueTheme, QueueThemeStore.current())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
     }
@@ -321,7 +335,7 @@ private struct LiveActivityCompanionRing: View {
         } else {
             Image(systemName: "leaf.fill")
                 .font(.system(size: max(9, diameter * 0.34), weight: .semibold))
-                .foregroundStyle(isComplete ? ringColor : QueueColors.success)
+                .foregroundStyle(isComplete ? ringColor : palette(.success))
         }
     }
 

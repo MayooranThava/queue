@@ -7,6 +7,7 @@ struct OnboardingFlowView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.queueCompanionVisible) private var companionVisible
+    @Environment(\.queueTheme) private var queueTheme
     @EnvironmentObject private var services: AppServices
     @State private var step = 0
     @State private var selectedProfile: MotivationProfile = .balanced
@@ -32,7 +33,8 @@ struct OnboardingFlowView: View {
                 bottomBar
                     .padding(QueueSpacing.lg)
             }
-            .background(QueueColors.background.ignoresSafeArea())
+            .background(QueueColors.background)
+            .environment(\.queueTheme, queueTheme)
             .navigationBarHidden(true)
         }
         .onAppear {
@@ -301,7 +303,7 @@ struct OnboardingFlowView: View {
     private func bullet(_ text: String) -> some View {
         HStack(alignment: .top, spacing: QueueSpacing.sm) {
             Circle()
-                .fill(QueueColors.accent)
+                .fill(QueueColors.rewardMark)
                 .frame(width: 8, height: 8)
                 .padding(.top, 6)
             Text(text)

@@ -697,6 +697,7 @@ private struct StackCardChrome: ViewModifier {
     let focusIsRunning: Bool
     let isDark: Bool
     let increaseContrast: Bool
+    @Environment(\.queueTheme) private var queueTheme
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: QueueSpacing.cornerSoft, style: .continuous)
@@ -725,7 +726,7 @@ private struct StackCardChrome: ViewModifier {
             }
             .shadow(
                 color: StackDeckLayout.showsDepthShadow(isDark: isDark)
-                    ? QueueColors.textPrimary.opacity(0.12)
+                    ? palette(.textPrimary).opacity(0.12)
                     : .clear,
                 radius: 14,
                 x: 0,
@@ -737,7 +738,16 @@ private struct StackCardChrome: ViewModifier {
 
     /// Dark mode lightens with the ivory text role. Light mode lightens with the background role.
     private var lighterTint: Color {
-        isDark ? QueueColors.textPrimary : QueueColors.background
+        palette(isDark ? .textPrimary : .background)
+    }
+
+    private func palette(_ role: QueueColorRole) -> Color {
+        QueueColors.concrete(
+            role,
+            theme: queueTheme,
+            scheme: isDark ? .dark : .light,
+            increasedContrast: increaseContrast
+        )
     }
 }
 

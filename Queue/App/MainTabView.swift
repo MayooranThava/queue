@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @Environment(\.queueTheme) private var queueTheme
     @EnvironmentObject private var services: AppServices
     @State private var selectedTab = 0
 
@@ -48,5 +49,6 @@ struct MainTabView: View {
         .toolbarBackground(.visible, for: .tabBar)
         .toolbarBackground(QueueColors.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .environment(\.queueTheme, queueTheme)
     }
 }

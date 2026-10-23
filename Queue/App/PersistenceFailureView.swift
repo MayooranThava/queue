@@ -5,6 +5,7 @@ import SwiftUI
 struct PersistenceFailureView: View {
     let error: Error
     var retry: () -> Void
+    @Environment(\.queueTheme) private var queueTheme
 
     var body: some View {
         ScrollView {
@@ -30,7 +31,8 @@ struct PersistenceFailureView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(QueueColors.background.ignoresSafeArea())
+        .background(QueueColors.background)
+        .environment(\.queueTheme, queueTheme)
     }
 
     private var detail: String {

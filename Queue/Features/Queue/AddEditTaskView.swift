@@ -11,6 +11,7 @@ struct TaskDraft: Equatable {
 
 struct AddEditTaskView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.queueTheme) private var queueTheme
 
     let existing: QueueTask?
     let onSave: (TaskDraft) async -> Void
@@ -83,6 +84,7 @@ struct AddEditTaskView: View {
             }
             .scrollContentBackground(.hidden)
             .background(QueueColors.background)
+            .environment(\.queueTheme, queueTheme)
             .navigationTitle(existing == nil ? "New task" : "Edit task")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -132,6 +134,7 @@ enum DurationEstimate {
 
 struct DurationEstimatePicker: View {
     @Binding var minutes: Int
+    @Environment(\.queueTheme) private var queueTheme
     /// Onboarding has no form row, so the stepper gets the same card as before.
     var showsStepperChrome: Bool = false
 
@@ -163,12 +166,14 @@ struct DurationEstimatePicker: View {
                         .fill(QueueColors.surface.opacity(0.55))
                 }
             }
+            .environment(\.queueTheme, queueTheme)
         }
     }
 }
 
 struct DurationPresetChips: View {
     @Binding var minutes: Int
+    @Environment(\.queueTheme) private var queueTheme
 
     var body: some View {
         HStack(spacing: QueueSpacing.xs) {
@@ -199,5 +204,6 @@ struct DurationPresetChips: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Duration presets")
+        .environment(\.queueTheme, queueTheme)
     }
 }

@@ -97,8 +97,9 @@ private struct LockScreenFocusView: View {
                 idle
             }
         }
-        // Lock Screen widgets are vibrant. A clear container lets the system material show.
+        // Lock Screen and Watch Smart Stack stay vibrant. Tint follows the shared theme.
         .containerBackground(for: .widget) { Color.clear }
+        .tint(QueueColors.dark(.primary))
         .dynamicTypeSize(.xSmall ... .accessibility2)
     }
 
@@ -258,7 +259,7 @@ struct WidgetPalette {
 
     var textPrimary: Color { fullColor ? QueueColors.dark(.textPrimary) : .primary }
     var textSecondary: Color { fullColor ? QueueColors.dark(.textSecondary) : .secondary }
-    /// Honey, from the shared catalog. Text on a honey fill uses `QueueColors.dark(.onAccent)` (forest).
+    /// Honey from the selected theme's dark column. Text on a honey fill uses `QueueColors.dark(.onAccent)`.
     var accent: Color { fullColor ? QueueColors.dark(.accent) : .primary }
     var onPrimary: Color { fullColor ? QueueColors.dark(.onPrimary) : .primary }
     var background: Color { QueueColors.dark(.background) }
@@ -279,10 +280,17 @@ struct WidgetPalette {
     /// Light mode, and tinted or vibrant Lock Screen styles, stay on primary.
     func ringColor(completed: Bool, colorScheme: ColorScheme) -> Color {
         guard fullColor else { return .primary }
-        if FocusActivityChrome.ringUsesHoney(isComplete: completed, isDark: colorScheme == .dark) {
-            return QueueColors.accent
+        let honey = FocusActivityChrome.ringUsesHoney(isComplete: completed, isDark: colorScheme == .dark)
+        let role: QueueColorRole = honey ? .accent : .primary
+        if colorScheme == .dark {
+            return QueueColors.dark(role)
         }
-        return QueueColors.primary
+        return QueueColors.concrete(
+            role,
+            theme: QueueThemeStore.current(),
+            scheme: .light,
+            increasedContrast: false
+        )
     }
 }
 
