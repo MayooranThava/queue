@@ -14,35 +14,46 @@ final class QueueOrderTests: XCTestCase {
         let first = try await repository.create(title: "A", notes: nil, estimatedDuration: 15 * 60)
         let middle = try await repository.create(title: "B", notes: "original", estimatedDuration: 15 * 60)
         let last = try await repository.create(title: "C", notes: nil, estimatedDuration: 15 * 60)
-        var edited = try XCTUnwrap(await repository.tasks().first { $0.id == middle.id })
+        let storedMiddle = await repository.tasks().first { $0.id == middle.id }
+        var edited = try XCTUnwrap(storedMiddle)
         edited.title = "B revised"
         edited.notes = "kept"
         edited.estimatedDuration = 20 * 60
         edited.difficulty = .hard
         edited.queuePosition = 0
         try await repository.update(edited)
-        XCTAssertEqual(await activeTitles(repository), ["A", "B revised", "C"])
+        let afterEdit = await activeTitles(repository)
+        XCTAssertEqual(afterEdit, ["A", "B revised", "C"])
 
         _ = try await repository.skip(id: first.id)
-        XCTAssertEqual(await activeTitles(repository), ["B revised", "C"])
-        XCTAssertEqual(await repository.tasks().first { $0.id == first.id }?.status, .skipped)
-        XCTAssertNil(await repository.tasks().first { $0.status == .active || $0.status == .paused })
+        let afterSkip = await activeTitles(repository)
+        let skipped = await repository.tasks().first { $0.id == first.id }
+        let stillFocusing = await repository.tasks().first { $0.status == .active || $0.status == .paused }
+        XCTAssertEqual(afterSkip, ["B revised", "C"])
+        XCTAssertEqual(skipped?.status, .skipped)
+        XCTAssertNil(stillFocusing)
 
         _ = try await repository.requeue(id: middle.id)
-        XCTAssertEqual(await activeTitles(repository), ["C", "B revised"])
+        let afterRequeue = await activeTitles(repository)
+        XCTAssertEqual(afterRequeue, ["C", "B revised"])
 
         _ = try await repository.create(title: "D", notes: nil, estimatedDuration: 15 * 60)
-        XCTAssertEqual(await activeTitles(repository), ["C", "B revised", "D"])
+        let afterAdd = await activeTitles(repository)
+        XCTAssertEqual(afterAdd, ["C", "B revised", "D"])
 
         try await repository.delete(id: middle.id)
-        XCTAssertEqual(await activeTitles(repository), ["C", "D"])
-        XCTAssertEqual(await repository.tasks().first { $0.id == last.id }?.status, .queued)
+        let afterDelete = await activeTitles(repository)
+        let remaining = await repository.tasks().first { $0.id == last.id }
+        XCTAssertEqual(afterDelete, ["C", "D"])
+        XCTAssertEqual(remaining?.status, .queued)
 
         let expected = await activeTitles(repository)
         let reopened = harness.reopenedRepository()
         try await reopened.bootstrapFromStore()
-        XCTAssertEqual(await activeTitles(reopened), expected)
-        let revised = try XCTUnwrap(await reopened.tasks().first { $0.id == middle.id })
+        let reopenedTitles = await activeTitles(reopened)
+        XCTAssertEqual(reopenedTitles, expected)
+        let storedRevised = await reopened.tasks().first { $0.id == middle.id }
+        let revised = try XCTUnwrap(storedRevised)
         XCTAssertEqual(revised.title, "B revised")
         XCTAssertEqual(revised.notes, "kept")
         XCTAssertEqual(revised.estimatedDuration, 20 * 60)

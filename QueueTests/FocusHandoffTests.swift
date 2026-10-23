@@ -20,11 +20,13 @@ final class FocusHandoffTests: XCTestCase {
         var pending = try await pendingAlert(harness)
         XCTAssertEqual(pending?.taskID, first.id)
         XCTAssertEqual(pending?.sessionID, started.id)
-        XCTAssertEqual(try await scheduleCount(harness), 1)
+        let startedSchedules = try await scheduleCount(harness)
+        XCTAssertEqual(startedSchedules, 1)
 
         harness.clock.advance(by: 5 * 60)
         _ = try await repository.pauseFocus(taskID: first.id)
-        XCTAssertNil(try await pendingAlert(harness))
+        let pausedAlert = try await pendingAlert(harness)
+        XCTAssertNil(pausedAlert)
 
         let resumed = try await repository.resumeFocus(taskID: first.id)
         pending = try await pendingAlert(harness)
@@ -37,10 +39,12 @@ final class FocusHandoffTests: XCTestCase {
         let extendedFire = try XCTUnwrap(pending).fireDate
         XCTAssertEqual(extendedFire.timeIntervalSince(resumedFire), 5 * 60, accuracy: 2)
         XCTAssertEqual(pending?.taskID, first.id)
-        XCTAssertEqual(try await scheduleCount(harness), 3)
+        let extendedSchedules = try await scheduleCount(harness)
+        XCTAssertEqual(extendedSchedules, 3)
 
         let outcome = try await repository.completeFocus(taskID: first.id)
-        XCTAssertNil(try await pendingAlert(harness))
+        let completedAlert = try await pendingAlert(harness)
+        XCTAssertNil(completedAlert)
         XCTAssertGreaterThan(outcome.award.awardedXP, 0)
         let total = try harness.storedTotalXP()
 
@@ -52,21 +56,24 @@ final class FocusHandoffTests: XCTestCase {
         XCTAssertEqual(pending?.taskID, second.id)
         XCTAssertEqual(pending?.sessionID, next.id)
         XCTAssertNotEqual(pending?.sessionID, started.id)
-        XCTAssertEqual(try await scheduleCount(harness), 4)
+        let nextSchedules = try await scheduleCount(harness)
+        XCTAssertEqual(nextSchedules, 4)
 
         let tasks = await repository.tasks()
         XCTAssertEqual(tasks.first { $0.id == first.id }?.status, .completed)
         XCTAssertEqual(tasks.first { $0.id == second.id }?.status, .active)
         XCTAssertEqual(tasks.first { $0.id == third.id }?.status, .queued)
-        XCTAssertEqual(await repository.activeQueue().map(\.title), ["B", "C"])
+        let titles = await repository.activeQueue().map(\.title)
+        XCTAssertEqual(titles, ["B", "C"])
         let sessions = try harness.storedSessions()
         XCTAssertEqual(sessions.map(\.taskID), [second.id])
         XCTAssertEqual(sessions.first?.state, .running)
         XCTAssertEqual(try harness.sourceEventIDs().count, 1)
         XCTAssertEqual(try harness.storedTotalXP(), total)
-        XCTAssertNil(await repository.tasks().first {
+        let stray = await repository.tasks().first {
             $0.id != second.id && ($0.status == .active || $0.status == .paused || $0.status == .expired)
-        })
+        }
+        XCTAssertNil(stray)
     }
 
     private func pendingAlert(_ harness: QueueHarness) async throws -> FocusEndAlert? {

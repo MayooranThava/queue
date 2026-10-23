@@ -61,14 +61,17 @@ final class FocusAwardTests: XCTestCase {
         try await perform(.pauseOrResume, on: harness, using: calls)
         try await perform(.extendFiveMinutes, on: harness, using: calls)
         XCTAssertEqual(try harness.storedTotalXP(), 0)
-        XCTAssertEqual(await repository.activeQueue().map(\.title), ["Now", "Later"])
+        let duringFocus = await repository.activeQueue().map(\.title)
+        XCTAssertEqual(duringFocus, ["Now", "Later"])
 
         try await perform(.complete, on: harness, using: calls)
         let total = try harness.storedTotalXP()
         XCTAssertGreaterThan(total, 0)
         XCTAssertEqual(try harness.sourceEventIDs().count, 1)
-        XCTAssertEqual(await repository.activeQueue().map(\.title), ["Later"])
-        XCTAssertEqual(await repository.tasks().first { $0.id == following.id }?.status, .queued)
+        let afterComplete = await repository.activeQueue().map(\.title)
+        let followingStatus = await repository.tasks().first { $0.id == following.id }?.status
+        XCTAssertEqual(afterComplete, ["Later"])
+        XCTAssertEqual(followingStatus, .queued)
 
         let widget = harness.reopenedRepository()
         try await widget.bootstrapFromStore()
@@ -99,7 +102,8 @@ final class FocusAwardTests: XCTestCase {
 
         let restored = harness.reopenedRepository()
         try await restored.bootstrapFromStore()
-        let snapshot = try XCTUnwrap(await restored.currentFocusSnapshot())
+        let restoredSnapshot = await restored.currentFocusSnapshot()
+        let snapshot = try XCTUnwrap(restoredSnapshot)
         XCTAssertEqual(snapshot.taskID, task.id)
         XCTAssertEqual(snapshot.session.state, .running)
         XCTAssertEqual(snapshot.session.remaining(at: harness.clock.now()), 6 * 60, accuracy: 1)
