@@ -100,6 +100,7 @@ struct CompletionCelebrationView: View {
                                 .foregroundStyle(QueueColors.rewardMark)
                                 .contentTransition(.numericText())
                                 .accessibilityLabel("\(outcome.award.awardedXP) experience points earned")
+                                .accessibilityIdentifier(QueueAccessibilityID.celebrationXP)
 
                             if showBreakdown {
                                 Text(breakdownCaption)

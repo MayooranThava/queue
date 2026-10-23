@@ -167,7 +167,7 @@ final class SchemaMigrationTests: XCTestCase {
             let transactionID = UUID(uuidString: "BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF")!
             let sourceEventID = UUID(uuidString: "12345678-9ABC-DEF0-1234-56789ABCDEF0")!
             let created = Date(timeIntervalSinceReferenceDate: 700_000_000)
-            let task = QueueTask(
+            let task = QueueTestFixture.makeTask(
                 id: taskID,
                 title: "Write the migration",
                 notes: "Keep the TestFlight store",

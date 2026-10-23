@@ -289,6 +289,7 @@ struct QueueStackDeckView: View {
                                 ? "Opens the full focus screen"
                                 : "Collapses the stack"
                         )
+                        .queueAccessibilityIdentifier(index == 0 ? QueueAccessibilityID.queueOpenFocus : nil)
 
                     if live == nil || index != 0 {
                         Text(estimateLine(for: task))

@@ -58,6 +58,9 @@ final class AppServices: ObservableObject {
 
     func configure(modelContext: ModelContext) async {
         if taskRepository == nil {
+            let authorizer: any FocusNotificationAuthorizing = QueueUITestLaunch.skipsNotificationPrompt
+                ? SilentFocusNotificationAuthorizer()
+                : focusAlertCenter
             taskRepository = TaskRepository(
                 context: modelContext,
                 queueService: queueService,
@@ -65,7 +68,7 @@ final class AppServices: ObservableObject {
                 rewardEngine: rewardEngine,
                 analytics: analytics,
                 focusNotifications: focusAlertCenter,
-                notificationAuthorizer: focusAlertCenter
+                notificationAuthorizer: authorizer
             )
         }
         guard !didBootstrap else {

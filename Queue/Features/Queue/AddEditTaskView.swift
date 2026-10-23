@@ -46,6 +46,7 @@ struct AddEditTaskView: View {
                     TextField("What will you finish?", text: $title)
                         .focused($titleFocused)
                         .font(QueueTypography.body())
+                        .accessibilityIdentifier(QueueAccessibilityID.taskTitle)
                     TextField("Notes (optional)", text: $notes, axis: .vertical)
                         .lineLimit(3...6)
                 } header: {
@@ -96,6 +97,7 @@ struct AddEditTaskView: View {
                         Task { await save() }
                     }
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
+                    .accessibilityIdentifier(QueueAccessibilityID.taskSave)
                 }
             }
             .onAppear { titleFocused = true }

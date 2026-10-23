@@ -6,7 +6,11 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
+  schedule:
+    # Nightly UI smoke. Not part of the required Queue CI check.
+    - cron: "0 8 * * *"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -14,10 +18,12 @@ concurrency:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   queue-ci:
     name: Queue CI
+    if: github.event_name != 'schedule'
     runs-on: macos-26
     timeout-minutes: 45
     env:
@@ -123,8 +129,19 @@ jobs:
           xcrun simctl boot "$udid" || true
           xcrun simctl bootstatus "$udid" -b
           start=$SECONDS
-          bash .github/ci/xcodebuild-simulator.sh test "$DESTINATION"
+          bash .github/ci/xcodebuild-simulator.sh test "$DESTINATION" \
+            -only-testing:QueueTests \
+            -enableCodeCoverage YES
           echo "- QueueTests on simulator: $((SECONDS - start))s" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload simulator coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: queue-simulator-coverage
+          if-no-files-found: ignore
+          retention-days: 7
+          path: ${{ runner.temp }}/QueueTests.xcresult
 
       - name: Upload test results
         if: failure()
@@ -139,13 +156,64 @@ jobs:
             ${{ runner.temp }}/xcodebuild-test.log
             ${{ runner.temp }}/QueueTests.xcresult
 
-      - name: Save build cache
-        if: success() && steps.cache.outputs.cache-hit != 'true'
-        continue-on-error: true
-        uses: actions/cache/save@v6
+  queue-ui-tests:
+    name: Queue UI Tests
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ui-tests'))
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      NSUnbufferedIO: "YES"
+      QUEUE_RESULT_BUNDLE: QueueUITests.xcresult
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Select Xcode 26.6
+        run: |
+          set -euo pipefail
+          if [ ! -d "$DEVELOPER_DIR" ]; then
+            echo "Xcode 26.6 is not installed on this image." >&2
+            ls -d /Applications/Xcode*.app >&2 || true
+            exit 1
+          fi
+          sudo xcode-select -s "$DEVELOPER_DIR"
+          xcodebuild -version
+
+      - name: Select iPhone simulator
+        id: simulator
+        run: |
+          set -euo pipefail
+          destination="$(python3 .github/ci/select-iphone-simulator.py)"
+          if [ -z "$destination" ]; then
+            echo "Simulator selection returned an empty destination." >&2
+            exit 1
+          fi
+          echo "destination=$destination" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare ad-hoc simulator signing
+        run: python3 .github/ci/prepare-simulator-signing.py
+
+      - name: Run Queue UI smoke tests
+        env:
+          DESTINATION: ${{ steps.simulator.outputs.destination }}
+        run: |
+          set -euo pipefail
+          udid="${DESTINATION##*id=}"
+          xcrun simctl boot "$udid" || true
+          xcrun simctl bootstatus "$udid" -b
+          bash .github/ci/xcodebuild-simulator.sh test "$DESTINATION" -only-testing:QueueUITests
+
+      - name: Upload UI test results
+        if: always()
+        uses: actions/upload-artifact@v7
         with:
+          name: queue-ui-test-results
+          if-no-files-found: ignore
+          retention-days: 7
           path: |
-            .build
-            DerivedData/Build
-            DerivedData/SourcePackages
-          key: ios-v1-${{ runner.os }}-xcode-26.6-${{ github.sha }}
+            ${{ runner.temp }}/xcodebuild-test.log
+            ${{ runner.temp }}/QueueUITests.xcresult

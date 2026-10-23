@@ -186,6 +186,7 @@ struct OnboardingFlowView: View {
                 TextField("e.g. Outline the intro paragraph", text: $firstTaskTitle)
                     .textFieldStyle(QueueTextFieldStyle())
                     .submitLabel(.done)
+                    .accessibilityIdentifier(QueueAccessibilityID.onboardingTaskTitle)
 
                 VStack(alignment: .leading, spacing: QueueSpacing.sm) {
                     Text("Time")
@@ -247,6 +248,7 @@ struct OnboardingFlowView: View {
             }
             .buttonStyle(QueuePrimaryButtonStyle())
             .disabled(step == 5 && firstTaskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .accessibilityIdentifier(QueueAccessibilityID.onboardingContinue)
         }
     }
 

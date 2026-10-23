@@ -10,10 +10,13 @@ struct RootView: View {
     @Query private var preferences: [UserPreferencesEntity]
     @AppStorage("showPlannedStartTimes") private var legacyShowPlannedStartTimes = false
     @State private var showOnboarding = false
+    @State private var uiTestReady = !QueueUITestLaunch.isActive
 
     var body: some View {
         Group {
-            if showOnboarding {
+            if !uiTestReady {
+                Color.clear
+            } else if showOnboarding {
                 OnboardingFlowView {
                     completeOnboarding()
                 }
@@ -31,14 +34,42 @@ struct RootView: View {
             )
         )
         .task {
+            if QueueUITestLaunch.isActive {
+                prepareUITestStore()
+            }
             await services.configure(modelContext: modelContext)
             let prefs = UserPreferencesStore.entity(in: modelContext)
             adoptLegacyPlannedStartTimes(into: prefs)
             showOnboarding = !prefs.hasCompletedOnboarding
+            uiTestReady = true
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             Task { await services.importWidgetEditsIfNeeded() }
+        }
+    }
+
+    /// Clears persisted rows, then optionally marks onboarding finished.
+    /// Runs only when a UI test passed a launch argument.
+    private func prepareUITestStore() {
+        if QueueUITestLaunch.resetsStore {
+            wipe(TaskEntity.self)
+            wipe(FocusSessionEntity.self)
+            wipe(XPTransactionEntity.self)
+            wipe(UserPreferencesEntity.self)
+            try? modelContext.save()
+        }
+        if QueueUITestLaunch.skipsOnboarding {
+            let prefs = UserPreferencesStore.entity(in: modelContext)
+            prefs.hasCompletedOnboarding = true
+            try? modelContext.save()
+        }
+    }
+
+    private func wipe<Model: PersistentModel>(_ type: Model.Type) {
+        let rows = (try? modelContext.fetch(FetchDescriptor<Model>())) ?? []
+        for row in rows {
+            modelContext.delete(row)
         }
     }
 

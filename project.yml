@@ -117,6 +117,19 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.queueapp.QueueupTests
         GENERATE_INFOPLIST_FILE: true
+  QueueUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: QueueUITests
+      - path: Shared/QueueAccessibilityID.swift
+    dependencies:
+      - target: Queue
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.queueapp.QueueupUITests
+        GENERATE_INFOPLIST_FILE: true
+        TEST_TARGET_NAME: Queue
 schemes:
   Queue:
     build:
@@ -124,8 +137,10 @@ schemes:
         Queue: all
         QueueWidgets: all
         QueueTests: [test]
+        QueueUITests: [test]
     test:
       targets:
         - QueueTests
+        - QueueUITests
     run:
       config: Debug

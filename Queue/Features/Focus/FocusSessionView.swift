@@ -191,6 +191,7 @@ struct FocusSessionView: View {
             }
             .buttonStyle(QueuePrimaryButtonStyle())
             .accessibilityHint("Marks the task done and awards XP")
+            .accessibilityIdentifier(QueueAccessibilityID.focusComplete)
 
             HStack(spacing: QueueSpacing.sm) {
                 if session?.state == .paused {
@@ -203,6 +204,7 @@ struct FocusSessionView: View {
                         Task { await pause() }
                     }
                     .buttonStyle(QueueSecondaryButtonStyle())
+                    .accessibilityIdentifier(QueueAccessibilityID.focusPause)
                 }
 
                 if session?.state == .running || session?.state == .paused || session?.state == .expired {

@@ -73,6 +73,7 @@ struct QueueHomeView: View {
                 }
             }
         }
+        .accessibilityIdentifier(QueueAccessibilityID.queueHome)
         .navigationTitle("Queue")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
@@ -96,6 +97,7 @@ struct QueueHomeView: View {
                         .frame(width: QueueSpacing.minTouch, height: QueueSpacing.minTouch)
                 }
                 .accessibilityLabel("Add task")
+                .accessibilityIdentifier(QueueAccessibilityID.queueAdd)
             }
         }
         .sheet(isPresented: $showAddTask) {
@@ -208,6 +210,7 @@ struct QueueHomeView: View {
             }
             .buttonStyle(QueuePrimaryButtonStyle())
             .padding(.horizontal, QueueSpacing.xl)
+            .accessibilityIdentifier(QueueAccessibilityID.queueAdd)
             Spacer()
         }
         .accessibilityElement(children: .contain)
@@ -749,6 +752,7 @@ private struct ActiveTaskStackBlock: View {
 
             Button(isAlreadyFocusing ? "Continue focus" : "Start focus", action: onFocus)
                 .buttonStyle(QueuePrimaryButtonStyle())
+                .accessibilityIdentifier(QueueAccessibilityID.queueOpenFocus)
                 .accessibilityHint(
                     isAlreadyFocusing
                         ? "Returns to the running focus session"
