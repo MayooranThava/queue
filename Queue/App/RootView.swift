@@ -3,6 +3,7 @@ import SwiftData
 
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var services: AppServices
     @Query private var preferences: [UserPreferencesEntity]
     @State private var showOnboarding = false
@@ -22,6 +23,10 @@ struct RootView: View {
             await services.configure(modelContext: modelContext)
             ensurePreferences()
             showOnboarding = !(preferences.first?.hasCompletedOnboarding ?? false)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await services.importWidgetEditsIfNeeded() }
         }
     }
 

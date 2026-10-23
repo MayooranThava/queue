@@ -72,6 +72,9 @@ targets:
     sources:
       - path: QueueWidgets
       - path: Shared
+      - path: Queue/Core/Persistence
+      - path: Queue/Core/Focus
+      - path: Queue/App/AppModelContainer.swift
     entitlements:
       path: QueueWidgets/QueueWidgets.entitlements
     dependencies:

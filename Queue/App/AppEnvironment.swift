@@ -1,9 +1,6 @@
 import SwiftUI
 import SwiftData
 import QueueCore
-#if canImport(WidgetKit)
-import WidgetKit
-#endif
 
 @MainActor
 final class AppServices: ObservableObject {
@@ -24,6 +21,8 @@ final class AppServices: ObservableObject {
     let focusAlertCenter: SystemFocusEndNotificationScheduler
     private var undoClearTask: Task<Void, Never>?
     private var didBootstrap = false
+    private var lastSeenStoreGeneration = 0
+    private var storeObserver: WidgetStoreChangeObserver?
 
     init(
         queueService: TaskQueueService = TaskQueueService(),
@@ -43,6 +42,13 @@ final class AppServices: ObservableObject {
             }
         }
         focusAlertCenter.install()
+        storeObserver = WidgetStoreChangeObserver { [weak self] in
+            Task { @MainActor in
+                await self?.importWidgetEditsIfNeeded()
+                await self?.refreshFocusSnapshot()
+            }
+        }
+        storeObserver?.start()
     }
 
     func openFocus(taskID: UUID?) {
@@ -63,6 +69,7 @@ final class AppServices: ObservableObject {
             )
         }
         guard !didBootstrap else {
+            await importWidgetEditsIfNeeded()
             await refreshXP()
             await refreshFocusSnapshot()
             return
@@ -73,8 +80,30 @@ final class AppServices: ObservableObject {
         } catch {
             didBootstrap = true
         }
+        lastSeenStoreGeneration = WidgetStoreGeneration.current()
         await refreshXP()
         await refreshFocusSnapshot()
+    }
+
+    /// Reloads SwiftData after a widget button wrote the shared store.
+    func importWidgetEditsIfNeeded() async {
+        guard taskRepository != nil else { return }
+        let generation = WidgetStoreGeneration.current()
+        guard generation != lastSeenStoreGeneration else { return }
+        do {
+            let dump = try SharedStoreDump.load()
+            try await taskRepository?.applyExternalSnapshot(
+                tasks: dump.tasks,
+                session: dump.session,
+                transactions: dump.transactions
+            )
+            lastSeenStoreGeneration = WidgetStoreGeneration.current()
+            focusSnapshot = await taskRepository?.currentFocusSnapshot()
+            await refreshXP()
+            await FocusLiveActivityController.shared.sync(snapshot: focusSnapshot)
+        } catch {
+            // Leave the generation unseen so the next foreground can retry.
+        }
     }
 
     func refreshXP() async {
@@ -85,16 +114,20 @@ final class AppServices: ObservableObject {
 
     /// Pulls the authoritative session and reloads Home Screen widgets.
     func refreshFocusSnapshot() async {
+        if WidgetStoreGeneration.current() != lastSeenStoreGeneration {
+            await importWidgetEditsIfNeeded()
+        }
+        // A failed import must not overwrite the widget's snapshot with stale memory.
+        guard WidgetStoreGeneration.current() == lastSeenStoreGeneration else { return }
         let snapshot = await taskRepository?.currentFocusSnapshot()
+        await taskRepository?.publishQueueSnapshot()
         focusSnapshot = snapshot
         reloadWidgets()
         await FocusLiveActivityController.shared.sync(snapshot: snapshot)
     }
 
     func reloadWidgets() {
-        #if canImport(WidgetKit)
-        WidgetCenter.shared.reloadAllTimelines()
-        #endif
+        QueueWidgetReload.reload()
     }
 
     /// Brief post-completion undo affordance (skippable, auto-dismisses).

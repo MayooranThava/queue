@@ -62,6 +62,7 @@ final class TaskRepository {
         await rewardEngine.restore(transactions: transactions)
 
         try await restoreFocusSessionIfNeeded()
+        await publishQueueSnapshot()
     }
 
     func tasks() async -> [QueueTask] {
@@ -89,6 +90,7 @@ final class TaskRepository {
         context.insert(TaskEntity(from: task))
         try context.save()
         analytics.track(.taskCreated(taskID: task.id))
+        await publishQueueSnapshot()
         return task
     }
 
@@ -104,6 +106,7 @@ final class TaskRepository {
             category: .some(task.category)
         )
         try upsert(updated)
+        await publishQueueSnapshot()
     }
 
     func reorder(orderedIDs: [UUID]) async throws {
@@ -112,6 +115,7 @@ final class TaskRepository {
         for task in queue {
             try upsert(task)
         }
+        await publishQueueSnapshot()
     }
 
     /// Starts or resumes focus. Safe to call when the task is already active/paused.
@@ -120,6 +124,7 @@ final class TaskRepository {
             let snapped = await timerEngine.snapshotted() ?? live
             try persistSession(snapped)
             await publishFocusAlert(snapped, prompt: true)
+            await publishQueueSnapshot()
             return snapped
         }
 
@@ -140,6 +145,7 @@ final class TaskRepository {
             )
             try persistSession(session)
             await publishFocusAlert(session, prompt: true)
+            await publishQueueSnapshot()
             return session
 
         case .active, .expired:
@@ -151,6 +157,7 @@ final class TaskRepository {
             )
             try persistSession(session)
             await publishFocusAlert(session, prompt: true)
+            await publishQueueSnapshot()
             return session
 
         case .paused:
@@ -165,6 +172,7 @@ final class TaskRepository {
             )
             try persistSession(session)
             await publishFocusAlert(session, prompt: true)
+            await publishQueueSnapshot()
             return session
 
         default:
@@ -179,6 +187,7 @@ final class TaskRepository {
         let session = try await timerEngine.pause()
         try persistSession(session)
         await publishFocusAlert(session, prompt: false)
+        await publishQueueSnapshot()
         return session
     }
 
@@ -189,6 +198,7 @@ final class TaskRepository {
         let session = try await timerEngine.resume()
         try persistSession(session)
         await publishFocusAlert(session, prompt: true)
+        await publishQueueSnapshot()
         return session
     }
 
@@ -197,6 +207,7 @@ final class TaskRepository {
         try persistSession(session)
         analytics.track(.taskExtended(taskID: session.taskID))
         await publishFocusAlert(session, prompt: true)
+        await publishQueueSnapshot()
         return session
     }
 
@@ -212,6 +223,7 @@ final class TaskRepository {
                 }
             }
         }
+        await publishQueueSnapshot()
         return session
     }
 
@@ -224,6 +236,7 @@ final class TaskRepository {
         analytics.track(.focusSessionCompleted(taskID: taskID))
 
         let sourceEventID = session.id
+        try await mergePersistedAwards(sourceEventID: sourceEventID)
         let award = await rewardEngine.awardTaskCompletion(
             sourceEventID: sourceEventID,
             taskID: taskID,
@@ -241,6 +254,7 @@ final class TaskRepository {
         try persistSession(session)
         try context.save()
         await publishFocusAlert(session, prompt: false)
+        await publishQueueSnapshot()
         return FocusCompletionOutcome(task: task, award: award, sourceEventID: sourceEventID)
     }
 
@@ -263,6 +277,7 @@ final class TaskRepository {
         try clearPersistedSession()
         await syncFocusAlert(nil)
         try context.save()
+        await publishQueueSnapshot()
         return task
     }
 
@@ -273,6 +288,7 @@ final class TaskRepository {
         let task = try await queueService.archive(id: id)
         try upsert(task)
         try await clearFocusSession(for: id)
+        await publishQueueSnapshot()
     }
 
     /// Drops the task out of the active queue. It can be requeued later.
@@ -281,6 +297,7 @@ final class TaskRepository {
         let task = try await queueService.skip(id: id)
         try upsert(task)
         try await clearFocusSession(for: id)
+        await publishQueueSnapshot()
         return task
     }
 
@@ -295,6 +312,7 @@ final class TaskRepository {
             try upsert(task)
         }
         try await clearFocusSession(for: id)
+        await publishQueueSnapshot()
         return await queueService.task(id: id) ?? task
     }
 
@@ -519,6 +537,84 @@ final class TaskRepository {
             title = ""
         }
         await focusAlertSync.sync(session: session, taskTitle: title, now: Date())
+    }
+
+    /// Writes the up-next snapshot the widget reads, then reloads its timelines.
+    func publishQueueSnapshot(now: Date = Date()) async {
+        let tasks = await queueService.allTasks()
+        let snapshot = QueueWidgetSnapshotBuilder.make(tasks: tasks, at: now)
+        QueueActivityStore.save(snapshot)
+        QueueWidgetReload.reload()
+    }
+
+    /// Replaces the in-memory queue, timer, and XP ledger with a store another process just wrote.
+    func applyExternalSnapshot(
+        tasks: [QueueTask],
+        session: FocusSession?,
+        transactions: [XPTransaction]
+    ) async throws {
+        for entity in try context.fetch(FetchDescriptor<TaskEntity>()) {
+            context.delete(entity)
+        }
+        for entity in try context.fetch(FetchDescriptor<FocusSessionEntity>()) {
+            context.delete(entity)
+        }
+        for entity in try context.fetch(FetchDescriptor<XPTransactionEntity>()) {
+            context.delete(entity)
+        }
+        try context.save()
+
+        for task in tasks {
+            context.insert(TaskEntity(from: task))
+        }
+        let liveSession = liveSnapshotSession(session)
+        if let liveSession {
+            context.insert(FocusSessionEntity(session: liveSession))
+        }
+        for transaction in transactions {
+            context.insert(XPTransactionEntity(from: transaction))
+        }
+        try context.save()
+
+        await queueService.replaceAll(tasks)
+        await rewardEngine.restore(transactions: transactions)
+        await timerEngine.clear()
+        if let liveSession {
+            await timerEngine.restore(liveSession)
+            if let snapped = await timerEngine.snapshotted() {
+                try persistSession(snapped)
+                await syncFocusAlert(snapped)
+            }
+        } else {
+            FocusActivityStore.clear()
+            await syncFocusAlert(nil)
+        }
+        await publishQueueSnapshot()
+    }
+
+    /// Pulls awards another process already saved so a second complete does not insert them again.
+    private func mergePersistedAwards(sourceEventID: UUID) async throws {
+        let descriptor = FetchDescriptor<XPTransactionEntity>(
+            predicate: #Predicate { $0.sourceEventID == sourceEventID }
+        )
+        let existing = try context.fetch(descriptor).compactMap { $0.asDomain() }
+        guard !existing.isEmpty else { return }
+        var ledger = await rewardEngine.transactions()
+        let known = Set(ledger.map(\.id))
+        for transaction in existing where !known.contains(transaction.id) {
+            ledger.append(transaction)
+        }
+        await rewardEngine.restore(transactions: ledger)
+    }
+
+    private func liveSnapshotSession(_ session: FocusSession?) -> FocusSession? {
+        guard let session else { return nil }
+        switch session.state {
+        case .running, .paused, .expired:
+            return session
+        case .idle, .completed:
+            return nil
+        }
     }
 
     private func requireTask(_ id: UUID) async throws -> QueueTask {
