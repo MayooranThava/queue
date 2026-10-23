@@ -30,7 +30,8 @@ enum WidgetStoreChangeCenter {
 final class WidgetStoreChangeObserver {
     var onChange: () -> Void
     private var pointer: UnsafeMutableRawPointer?
-    private let name = CFNotificationName(WidgetStoreChangeCenter.notificationName as CFString)
+    // AddObserver still takes CFString. PostNotification takes CFNotificationName.
+    private let name = WidgetStoreChangeCenter.notificationName as CFString
 
     init(onChange: @escaping () -> Void) {
         self.onChange = onChange
