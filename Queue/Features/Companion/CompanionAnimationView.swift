@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import QueueCore
 
 /// Production companion entry point backed by SpriteKit atlas playback.
 /// Design frames are 768×768 PNG sequences in `Working` / `DeepFocus` / `Completed` / `Expired` atlases.
@@ -10,13 +11,22 @@ struct CompanionAnimationView: View, CompanionAnimationRendering {
 
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.queueCompanionVisible) private var companionVisible
+    @Environment(\.queueAnimationIntensity) private var animationIntensity
     @State private var sequenceGeneration: UInt = 0
 
     private var shouldAnimate: Bool {
-        !reduceMotion && !systemReduceMotion
+        animationIntensity.allowsMotion && !reduceMotion && !systemReduceMotion
     }
 
+    @ViewBuilder
     var body: some View {
+        if companionVisible {
+            companionBody
+        }
+    }
+
+    private var companionBody: some View {
         GeometryReader { geo in
             let side = max(1, min(geo.size.width, geo.size.height))
             ZStack {

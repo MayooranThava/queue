@@ -61,6 +61,11 @@ final class TaskRepository {
         let transactions = xpEntities.compactMap { $0.asDomain() }
         await rewardEngine.restore(transactions: transactions)
 
+        let preferenceDescriptor = FetchDescriptor<UserPreferencesEntity>()
+        if let profile = try context.fetch(preferenceDescriptor).first?.motivationProfile {
+            await rewardEngine.setProfile(profile)
+        }
+
         try await restoreFocusSessionIfNeeded()
         await publishQueueSnapshot()
     }

@@ -12,8 +12,10 @@ struct QueueHomeView: View {
         SortDescriptor(\TaskEntity.createdAt)
     ]) private var taskEntities: [TaskEntity]
 
-    @AppStorage("showPlannedStartTimes") private var showPlannedStartTimes = false
+    @Query private var preferences: [UserPreferencesEntity]
+    @AppStorage("showPlannedStartTimes") private var legacyShowPlannedStartTimes = false
     @AppStorage("queuePresentationMode") private var queuePresentationMode = "stack"
+    @Environment(\.queueCompanionVisible) private var companionVisible
 
     @State private var showAddTask = false
     @State private var editingTask: QueueTask?
@@ -30,6 +32,22 @@ struct QueueHomeView: View {
     }
 
     private var headTask: QueueTask? { activeTasks.first }
+
+    private var showPlannedStartTimes: Bool {
+        preferences.first?.showPlannedStartTimes ?? false
+    }
+
+    private var showPlannedStartTimesBinding: Binding<Bool> {
+        Binding(
+            get: { showPlannedStartTimes },
+            set: { newValue in
+                legacyShowPlannedStartTimes = newValue
+                let prefs = UserPreferencesStore.entity(in: modelContext)
+                UserPreferencesSettingsEditor.setShowPlannedStartTimes(newValue, on: prefs)
+                try? modelContext.save()
+            }
+        )
+    }
 
     private var remainingWorkMinutes: Int {
         Int(ceil(activeTasks.reduce(0.0) { $0 + $1.estimatedDuration } / 60.0))
@@ -56,7 +74,7 @@ struct QueueHomeView: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if activeTasks.count > 1 {
-                    Toggle(isOn: $showPlannedStartTimes) {
+                    Toggle(isOn: showPlannedStartTimesBinding) {
                         Image(systemName: showPlannedStartTimes ? "clock" : "timer")
                     }
                     .toggleStyle(.button)
@@ -164,9 +182,11 @@ struct QueueHomeView: View {
     private var emptyState: some View {
         VStack(spacing: QueueSpacing.lg) {
             Spacer()
-            CompanionAnimationView(state: .idle, reduceMotion: false)
-                .frame(height: 140)
-                .accessibilityHidden(true)
+            if companionVisible {
+                CompanionAnimationView(state: .idle, reduceMotion: false)
+                    .frame(height: 140)
+                    .accessibilityHidden(true)
+            }
             Text("Nothing in your queue")
                 .font(QueueTypography.title(28))
                 .foregroundStyle(QueueColors.textPrimary)
@@ -542,6 +562,7 @@ private struct ActiveTaskStackBlock: View {
     var onFocus: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.queueCompanionVisible) private var companionVisible
 
     private var isAlreadyFocusing: Bool {
         focusSnapshot != nil
@@ -630,26 +651,33 @@ private struct ActiveTaskStackBlock: View {
     }
 
     private var companionBadge: some View {
-        ZStack {
-            if let focusSnapshot {
-                TimelineView(.periodic(from: .now, by: reduceMotion ? 1 : 0.5)) { context in
-                    FocusCountdownRing(
-                        progress: focusSnapshot.progress(at: context.date),
-                        isExpired: focusSnapshot.session.state == .expired,
-                        isPaused: focusSnapshot.session.state == .paused,
-                        reduceMotion: reduceMotion
-                    )
-                    .frame(width: 76, height: 76)
+        let showRing = focusSnapshot != nil
+        return Group {
+            if showRing || companionVisible {
+                ZStack {
+                    if let focusSnapshot {
+                        TimelineView(.periodic(from: .now, by: reduceMotion ? 1 : 0.5)) { context in
+                            FocusCountdownRing(
+                                progress: focusSnapshot.progress(at: context.date),
+                                isExpired: focusSnapshot.session.state == .expired,
+                                isPaused: focusSnapshot.session.state == .paused,
+                                reduceMotion: reduceMotion
+                            )
+                            .frame(width: 76, height: 76)
+                        }
+                    }
+                    if companionVisible {
+                        CompanionAnimationView(
+                            state: companionState,
+                            reduceMotion: false,
+                            compact: true
+                        )
+                        .frame(width: 64, height: 64)
+                    }
                 }
+                .frame(width: 80, height: 80)
             }
-            CompanionAnimationView(
-                state: companionState,
-                reduceMotion: false,
-                compact: true
-            )
-            .frame(width: 64, height: 64)
         }
-        .frame(width: 80, height: 80)
         .accessibilityHidden(true)
     }
 

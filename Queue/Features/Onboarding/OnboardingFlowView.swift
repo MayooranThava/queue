@@ -6,6 +6,7 @@ struct OnboardingFlowView: View {
     var onFinished: () -> Void
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.queueCompanionVisible) private var companionVisible
     @EnvironmentObject private var services: AppServices
     @State private var step = 0
     @State private var selectedProfile: MotivationProfile = .balanced
@@ -56,8 +57,10 @@ struct OnboardingFlowView: View {
                 .font(QueueTypography.headline(20))
                 .foregroundStyle(QueueColors.textSecondary)
                 .multilineTextAlignment(.center)
-            CompanionAnimationView(state: .idle, reduceMotion: false)
-                .frame(height: 160)
+            if companionVisible {
+                CompanionAnimationView(state: .idle, reduceMotion: false)
+                    .frame(height: 160)
+            }
             Spacer()
         }
         .padding(QueueSpacing.xl)
@@ -91,10 +94,10 @@ struct OnboardingFlowView: View {
                 } label: {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(profileTitle(profile))
+                            Text(profile.displayName)
                                 .font(QueueTypography.headline(17))
                                 .foregroundStyle(QueueColors.textPrimary)
-                            Text(profileSubtitle(profile))
+                            Text(profile.summary)
                                 .font(QueueTypography.caption())
                                 .foregroundStyle(QueueColors.textSecondary)
                         }
@@ -263,16 +266,16 @@ struct OnboardingFlowView: View {
             step += 1
             return
         }
-        persistPreferences()
+        await persistPreferences()
         await createFirstTaskIfNeeded()
         services.analytics.track(.onboardingCompleted)
         onFinished()
     }
 
-    private func persistPreferences() {
+    private func persistPreferences() async {
         let descriptor = FetchDescriptor<UserPreferencesEntity>()
         if let existing = try? modelContext.fetch(descriptor).first {
-            existing.motivationProfileRaw = selectedProfile.rawValue
+            UserPreferencesSettingsEditor.setMotivationProfile(selectedProfile, on: existing)
             existing.hasCompletedOnboarding = true
         } else {
             let prefs = UserPreferencesEntity(motivationProfile: selectedProfile)
@@ -280,6 +283,7 @@ struct OnboardingFlowView: View {
             modelContext.insert(prefs)
         }
         try? modelContext.save()
+        await services.rewardEngine.setProfile(selectedProfile)
     }
 
     private func createFirstTaskIfNeeded() async {
@@ -306,19 +310,4 @@ struct OnboardingFlowView: View {
         }
     }
 
-    private func profileTitle(_ profile: MotivationProfile) -> String {
-        switch profile {
-        case .balanced: return "Balanced"
-        case .speedRunner: return "Speed Runner"
-        case .consistencyBuilder: return "Consistency Builder"
-        }
-    }
-
-    private func profileSubtitle(_ profile: MotivationProfile) -> String {
-        switch profile {
-        case .balanced: return "Completion plus modest on-time bonuses."
-        case .speedRunner: return "More emphasis on finishing within estimates."
-        case .consistencyBuilder: return "Streaks and daily rhythm over speed."
-        }
-    }
 }

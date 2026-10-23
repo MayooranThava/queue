@@ -7,6 +7,7 @@ struct FocusSessionView: View {
     let task: QueueTask
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.queueCompanionVisible) private var companionVisible
     @EnvironmentObject private var services: AppServices
 
     @State private var session: FocusSession?
@@ -106,10 +107,12 @@ struct FocusSessionView: View {
                 }
             }
 
-            CompanionAnimationView(state: companionState, reduceMotion: reduceMotion)
-                .frame(width: 240, height: 240)
-                .frame(maxWidth: .infinity)
-                .accessibilityHidden(false)
+            if companionVisible {
+                CompanionAnimationView(state: companionState, reduceMotion: reduceMotion)
+                    .frame(width: 240, height: 240)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityHidden(false)
+            }
 
             Spacer(minLength: QueueSpacing.sm)
 

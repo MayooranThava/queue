@@ -31,7 +31,7 @@ struct MainTabView: View {
             .tag(2)
 
             NavigationStack {
-                SettingsPlaceholderView()
+                SettingsView()
             }
             .tabItem {
                 Label("Settings", systemImage: "gearshape")
