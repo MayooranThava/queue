@@ -38,8 +38,8 @@ struct QueuePaletteTests {
             "Danger": ("A23B2E", "EC8A74")
         ]
         for (role, pair) in approved {
-            #expect(colors[role]?[Slot(dark: false, highContrast: false)] == pair.light, role)
-            #expect(colors[role]?[Slot(dark: true, highContrast: false)] == pair.dark, role)
+            #expect(colors[role]?[Slot(dark: false, highContrast: false)] == pair.light, "\(role) light")
+            #expect(colors[role]?[Slot(dark: true, highContrast: false)] == pair.dark, "\(role) dark")
         }
     }
 
@@ -111,8 +111,8 @@ struct QueuePaletteTests {
                 .appendingPathComponent(name)
             let data = try Data(contentsOf: url)
             let header = try pngHeader(data)
-            #expect(header.width == 1024, name)
-            #expect(header.height == 1024, name)
+            #expect(header.width == 1024, "\(name) width")
+            #expect(header.height == 1024, "\(name) height")
             #expect(header.colorType == 2, "\(name) should have no alpha channel")
         }
     }
