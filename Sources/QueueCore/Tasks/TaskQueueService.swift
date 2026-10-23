@@ -42,7 +42,7 @@ public actor TaskQueueService {
     public func createTask(
         title: String,
         notes: String? = nil,
-        estimatedDuration: TimeInterval = 25 * 60,
+        estimatedDuration: TimeInterval = QueueTask.defaultEstimatedDuration,
         difficulty: TaskDifficulty = .medium,
         plannedStartAt: Date? = nil,
         scheduledDate: Date? = nil,
@@ -166,6 +166,8 @@ public actor TaskQueueService {
         try mutate(id: id, transition: .skip)
     }
 
+    /// Moves the task to the bottom of the active queue.
+    /// A focusing task becomes `.queued` again. The new head is not started.
     public func requeue(id: UUID) throws -> QueueTask {
         let position = nextQueuePosition()
         let task = try mutate(id: id, transition: .requeue) { task, _ in

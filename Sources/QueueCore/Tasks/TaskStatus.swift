@@ -35,13 +35,20 @@ public enum TaskTransition: Sendable {
 public enum TaskStateMachine {
     public static func canTransition(from: TaskStatus, applying transition: TaskTransition) -> Bool {
         switch (from, transition) {
-        case (.queued, .start): return true
+        // Skip, requeue, and archive are user-initiated. Requeue of a focusing task
+        // returns it to `.queued`; it does not start the task that becomes the new head.
+        case (.queued, .start), (.queued, .skip), (.queued, .requeue), (.queued, .archive):
+            return true
         case (.active, .pause), (.active, .complete), (.active, .expire),
-             (.active, .moveToReview), (.active, .skip): return true
+             (.active, .moveToReview), (.active, .skip), (.active, .requeue), (.active, .archive):
+            return true
         case (.paused, .resume), (.paused, .complete), (.paused, .expire),
-             (.paused, .moveToReview), (.paused, .skip): return true
+             (.paused, .moveToReview), (.paused, .skip), (.paused, .requeue), (.paused, .archive):
+            return true
         case (.expired, .continueWithoutTimer), (.expired, .complete),
-             (.expired, .moveToReview), (.expired, .skip), (.expired, .start): return true
+             (.expired, .moveToReview), (.expired, .skip), (.expired, .start),
+             (.expired, .requeue), (.expired, .archive):
+            return true
         case (.review, .requeue), (.review, .skip), (.review, .archive): return true
         case (.completed, .archive), (.completed, .undoComplete): return true
         case (.skipped, .archive), (.skipped, .requeue): return true
@@ -67,6 +74,20 @@ public enum TaskStateMachine {
         case .skip: return .skipped
         case .requeue, .undoComplete: return .queued
         case .archive: return .archived
+        }
+    }
+}
+
+/// Whether a queue edit would end focus and therefore must be an explicit choice.
+/// Moving a different task never qualifies: the active task stays where it is.
+public enum ActiveTaskEditPolicy {
+    public static func mustAcknowledgeFocusEnd(status: TaskStatus, hasLiveSession: Bool) -> Bool {
+        if hasLiveSession { return true }
+        switch status {
+        case .active, .paused, .expired:
+            return true
+        case .queued, .completed, .review, .skipped, .archived:
+            return false
         }
     }
 }

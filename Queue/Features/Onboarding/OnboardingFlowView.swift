@@ -10,7 +10,7 @@ struct OnboardingFlowView: View {
     @State private var step = 0
     @State private var selectedProfile: MotivationProfile = .balanced
     @State private var firstTaskTitle = ""
-    @State private var firstTaskMinutes = 25
+    @State private var firstTaskMinutes = DurationEstimate.defaultMinutes
     @State private var firstTaskDifficulty: TaskDifficulty = .medium
 
     var body: some View {
@@ -155,17 +155,7 @@ struct OnboardingFlowView: View {
                     Text("Time")
                         .font(QueueTypography.caption())
                         .foregroundStyle(QueueColors.secondaryText)
-                    Stepper(value: $firstTaskMinutes, in: 5...180, step: 5) {
-                        Text("\(firstTaskMinutes) minutes")
-                            .font(QueueTypography.headline(17))
-                            .foregroundStyle(QueueColors.primaryText)
-                    }
-                    .padding(QueueSpacing.md)
-                    .background(
-                        RoundedRectangle(cornerRadius: QueueSpacing.cornerMinimal, style: .continuous)
-                            .fill(QueueColors.secondarySurface.opacity(0.55))
-                    )
-                    .accessibilityLabel("Estimated duration, \(firstTaskMinutes) minutes")
+                    DurationEstimatePicker(minutes: $firstTaskMinutes, showsStepperChrome: true)
                 }
 
                 VStack(alignment: .leading, spacing: QueueSpacing.sm) {
