@@ -8,6 +8,7 @@ struct CompletionCelebrationView: View {
     var onSkip: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.queueCompanionVisible) private var companionVisible
     @State private var displayedXP: Int = 0
     @State private var showBreakdown = false
     @State private var appeared = false
@@ -48,13 +49,15 @@ struct CompletionCelebrationView: View {
         VStack(spacing: QueueSpacing.lg) {
             Spacer()
 
-            CompanionAnimationView(
-                state: levelUp ? .levelUp : .celebrating,
-                reduceMotion: reduceMotion
-            )
-            .frame(height: 150)
-            .scaleEffect(appeared ? 1 : 0.92)
-            .opacity(appeared ? 1 : 0)
+            if companionVisible {
+                CompanionAnimationView(
+                    state: levelUp ? .levelUp : .celebrating,
+                    reduceMotion: reduceMotion
+                )
+                .frame(height: 150)
+                .scaleEffect(appeared ? 1 : 0.92)
+                .opacity(appeared ? 1 : 0)
+            }
 
             Text("Nice work")
                 .font(QueueTypography.title(30))
