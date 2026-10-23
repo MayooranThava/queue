@@ -711,9 +711,9 @@ private struct StackCardChrome: ViewModifier {
         content
             .background {
                 ZStack {
-                    QueueColors.surface
+                    Rectangle().fill(QueueColors.surface)
                     if lighten > 0 {
-                        lighterTint.opacity(lighten)
+                        Rectangle().fill(lighterTint.opacity(lighten))
                     }
                 }
             }

@@ -74,6 +74,21 @@ jobs:
           echo "Selected destination: $destination"
           echo "- Simulator: \`$destination\`" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Prepare ad-hoc simulator signing
+        run: python3 .github/ci/prepare-simulator-signing.py
+
+      - name: Build Queue for iOS Simulator
+        env:
+          DESTINATION: ${{ steps.simulator.outputs.destination }}
+        run: |
+          set -euo pipefail
+          start=$SECONDS
+          # Compile the app and widget extension before package tests. Xcode Cloud
+          # archives this same scheme, and a SwiftUI error here should fail CI
+          # without waiting on `swift test`.
+          bash .github/ci/xcodebuild-simulator.sh build "$DESTINATION"
+          echo "- iOS simulator build: $((SECONDS - start))s" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Test QueueCore
         env:
           destination: ${{ steps.simulator.outputs.destination }}
@@ -84,7 +99,7 @@ jobs:
             exit 1
           fi
           udid="${destination##*id=}"
-          # Boot while domain tests compile so the simulator is warm for xcodebuild.
+          # Boot while domain tests compile so the simulator is warm for the app tests.
           xcrun simctl boot "$udid" || true
           xcrun simctl bootstatus "$udid" -b &
           boot_pid=$!
@@ -98,18 +113,6 @@ jobs:
             echo "::warning::Simulator was still booting after QueueCore tests; the iOS steps will boot it again."
           fi
           exit "$test_status"
-
-      - name: Prepare ad-hoc simulator signing
-        run: python3 .github/ci/prepare-simulator-signing.py
-
-      - name: Build Queue for iOS Simulator
-        env:
-          DESTINATION: ${{ steps.simulator.outputs.destination }}
-        run: |
-          set -euo pipefail
-          start=$SECONDS
-          bash .github/ci/xcodebuild-simulator.sh build "$DESTINATION"
-          echo "- iOS simulator build: $((SECONDS - start))s" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Test Queue app on iOS Simulator
         env:
