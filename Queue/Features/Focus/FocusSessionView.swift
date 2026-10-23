@@ -19,7 +19,7 @@ struct FocusSessionView: View {
 
     var body: some View {
         ZStack {
-            QueueColors.forestDeep.ignoresSafeArea()
+            QueueColors.background.ignoresSafeArea()
 
             if let completionOutcome {
                 CompletionCelebrationView(
@@ -57,7 +57,7 @@ struct FocusSessionView: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(QueueColors.ivory.opacity(0.75))
+                        .foregroundStyle(QueueColors.textSecondary)
                         .frame(width: QueueSpacing.minTouch, height: QueueSpacing.minTouch)
                 }
                 .accessibilityLabel("Close focus")
@@ -68,7 +68,7 @@ struct FocusSessionView: View {
 
             Text(task.title)
                 .font(QueueTypography.title(22))
-                .foregroundStyle(QueueColors.ivory)
+                .foregroundStyle(QueueColors.textPrimary)
                 .multilineTextAlignment(.center)
                 .lineLimit(3)
                 .minimumScaleFactor(0.8)
@@ -91,7 +91,7 @@ struct FocusSessionView: View {
                         VStack(spacing: QueueSpacing.xs) {
                             Text(timeLabel(remaining))
                                 .font(QueueTypography.monoTimer(56))
-                                .foregroundStyle(QueueColors.ivory)
+                                .foregroundStyle(QueueColors.textPrimary)
                                 .contentTransition(.numericText())
                                 .accessibilityLabel("Time remaining \(spokenTime(remaining))")
 
@@ -116,7 +116,7 @@ struct FocusSessionView: View {
             if focusAlertsDenied {
                 Text("Focus alerts are off. You can turn them on in iOS Settings.")
                     .font(QueueTypography.caption())
-                    .foregroundStyle(QueueColors.ivory.opacity(0.65))
+                    .foregroundStyle(QueueColors.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, QueueSpacing.xl)
             }
@@ -132,16 +132,16 @@ struct FocusSessionView: View {
         if let session, session.state == .expired {
             Text("Time’s up — finish when you’re ready")
                 .font(QueueTypography.caption())
-                .foregroundStyle(QueueColors.reward)
+                .foregroundStyle(QueueColors.accent)
                 .transition(.opacity)
         } else if session?.state == .paused {
             Text("Paused")
                 .font(QueueTypography.caption())
-                .foregroundStyle(QueueColors.ivory.opacity(0.65))
+                .foregroundStyle(QueueColors.textSecondary)
         } else {
             Text(task.difficulty.displayName + " · " + durationLabel(task.estimatedDuration))
                 .font(QueueTypography.caption())
-                .foregroundStyle(QueueColors.ivory.opacity(0.55))
+                .foregroundStyle(QueueColors.textSecondary)
         }
     }
 
@@ -150,7 +150,7 @@ struct FocusSessionView: View {
             Button("Complete") {
                 Task { await complete() }
             }
-            .buttonStyle(QueuePrimaryButtonStyle(onDarkSurface: true))
+            .buttonStyle(QueuePrimaryButtonStyle())
             .accessibilityHint("Marks the task done and awards XP")
 
             HStack(spacing: QueueSpacing.sm) {

@@ -25,6 +25,7 @@ targets:
       - path: Shared
     resources:
       - path: Queue/Resources/Assets.xcassets
+      - path: Shared/QueueColors.xcassets
       - path: Queue/Resources/Atlases/Working.atlas
       - path: Queue/Resources/Atlases/Typing.atlas
       - path: Queue/Resources/Atlases/DeepFocus.atlas
@@ -54,7 +55,7 @@ targets:
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen:
-          UIColorName: LaunchBackground
+          UIColorName: Background
         NSSupportsLiveActivities: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -75,6 +76,8 @@ targets:
       - path: Queue/Core/Persistence
       - path: Queue/Core/Focus
       - path: Queue/App/AppModelContainer.swift
+    resources:
+      - path: Shared/QueueColors.xcassets
     entitlements:
       path: QueueWidgets/QueueWidgets.entitlements
     dependencies:

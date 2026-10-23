@@ -16,10 +16,13 @@ struct ProgressPlaceholderView: View {
                     VStack(alignment: .leading, spacing: QueueSpacing.xs) {
                         Text(progress.current.name)
                             .font(QueueTypography.title(32))
-                            .foregroundStyle(QueueColors.primaryText)
+                            .foregroundStyle(QueueColors.textPrimary)
                         Text("\(services.totalXP) XP")
                             .font(QueueTypography.display(40))
-                            .foregroundStyle(QueueColors.rewardDeep)
+                            .foregroundStyle(QueueColors.onAccent)
+                            .padding(.horizontal, QueueSpacing.md)
+                            .padding(.vertical, QueueSpacing.xs)
+                            .background(QueueColors.accent, in: Capsule())
                             .contentTransition(.numericText())
                             .animation(QueueMotion.prefer(QueueMotion.standard, reduceMotion: reduceMotion), value: services.totalXP)
                     }
@@ -28,19 +31,19 @@ struct ProgressPlaceholderView: View {
                         if let next = progress.next {
                             Text("Next: \(next.name)")
                                 .font(QueueTypography.caption())
-                                .foregroundStyle(QueueColors.secondaryText)
+                                .foregroundStyle(QueueColors.textSecondary)
                         } else {
                             Text("Top level — keep the streak going")
                                 .font(QueueTypography.caption())
-                                .foregroundStyle(QueueColors.secondaryText)
+                                .foregroundStyle(QueueColors.textSecondary)
                         }
 
                         GeometryReader { proxy in
                             ZStack(alignment: .leading) {
                                 Capsule()
-                                    .fill(QueueColors.secondarySurface)
+                                    .fill(QueueColors.surface)
                                 Capsule()
-                                    .fill(QueueColors.reward)
+                                    .fill(QueueColors.accent)
                                     .frame(width: proxy.size.width * animatedFraction)
                             }
                         }
@@ -51,18 +54,18 @@ struct ProgressPlaceholderView: View {
                     .padding(QueueSpacing.lg)
                     .background(
                         RoundedRectangle(cornerRadius: QueueSpacing.cornerSoft, style: .continuous)
-                            .fill(QueueColors.secondarySurface.opacity(0.55))
+                            .fill(QueueColors.surface.opacity(0.55))
                     )
 
                     VStack(alignment: .leading, spacing: QueueSpacing.sm) {
                         Text("How XP works")
                             .font(QueueTypography.headline(17))
-                            .foregroundStyle(QueueColors.primaryText)
+                            .foregroundStyle(QueueColors.textPrimary)
                         Text(
                             "Base XP scales with difficulty and estimate length. Finish within budget for a punctuality bonus. Going over never subtracts XP — you still get rewarded for finishing."
                         )
                         .font(QueueTypography.body(15))
-                        .foregroundStyle(QueueColors.secondaryText)
+                        .foregroundStyle(QueueColors.textSecondary)
                     }
 
                     Spacer(minLength: QueueSpacing.xxl)

@@ -82,7 +82,7 @@ Completion: staged entrance → XP count (`motion.xpCount`) → level bar fill �
 
 ## Visual language reminders
 
-- Off-white / warm ivory light backgrounds; deep charcoal Focus
-- Sage secondary surfaces; yellow-green reward accents
+- Ivory light backgrounds; deep-forest Focus (the dark palette)
+- Sage-tinted surfaces; honey for XP, level-ups, and celebrations
 - No heavy gradients, excessive shadows, or constant motion
 - Companion must not obscure task title or primary controls

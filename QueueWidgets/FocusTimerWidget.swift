@@ -198,15 +198,6 @@ private struct LockScreenFocusView: View {
 
 // MARK: - Widget-local visuals
 
-enum QueueWidgetColors {
-    static let ivory = Color(red: 0.98, green: 0.97, blue: 0.94)
-    static let cream = Color(red: 0.96, green: 0.93, blue: 0.86)
-    static let sage = Color(red: 0.78, green: 0.84, blue: 0.76)
-    static let sageDeep = Color(red: 0.45, green: 0.55, blue: 0.48)
-    static let charcoal = Color(red: 0.14, green: 0.15, blue: 0.16)
-    static let reward = Color(red: 0.72, green: 0.82, blue: 0.28)
-}
-
 enum WidgetCompanionState {
     case idle, working, paused, expired
 }
@@ -218,31 +209,31 @@ struct WidgetCompanionBadge: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(QueueWidgetColors.ivory.opacity(0.12), lineWidth: 3)
+                .stroke(QueueColors.dark(.textPrimary).opacity(0.18), lineWidth: 3)
             Circle()
                 .trim(from: 0, to: CGFloat(min(1, max(0, progress))))
-                .stroke(QueueWidgetColors.reward.opacity(0.9), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(QueueColors.dark(.accent), style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))
 
             ZStack {
                 Capsule()
-                    .fill(Color(red: 0.42, green: 0.32, blue: 0.24).opacity(0.9))
+                    .fill(QueueColors.dark(.primary).opacity(0.9))
                     .frame(width: 28, height: 4)
                     .offset(y: 12)
                 Circle()
-                    .fill(QueueWidgetColors.cream)
+                    .fill(QueueColors.dark(.textPrimary))
                     .frame(width: 14, height: 14)
                     .offset(y: -4)
                 Capsule()
-                    .fill(QueueWidgetColors.cream)
+                    .fill(QueueColors.dark(.textPrimary))
                     .frame(width: 18, height: 12)
                     .offset(y: 6)
                 RoundedRectangle(cornerRadius: 1)
-                    .fill(QueueWidgetColors.charcoal)
+                    .fill(QueueColors.dark(.background))
                     .frame(width: 12, height: 7)
                     .overlay(
                         RoundedRectangle(cornerRadius: 0.5)
-                            .fill(QueueWidgetColors.reward.opacity(state == .working ? 0.7 : 0.25))
+                            .fill(QueueColors.dark(.accent).opacity(state == .working ? 0.7 : 0.25))
                             .padding(1.5)
                     )
                     .offset(y: 5)

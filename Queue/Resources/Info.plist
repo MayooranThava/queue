@@ -49,7 +49,7 @@
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>
-		<string>LaunchBackground</string>
+		<string>Background</string>
 	</dict>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
