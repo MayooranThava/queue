@@ -48,20 +48,29 @@ struct QueueStackDeckView: View {
         }
     }
 
-    private var overlap: CGFloat {
-        peekHeight * CGFloat(StackDeckLayout.peekOverlap / StackDeckLayout.basePeekHeight)
-    }
-
     private var focusIsRunning: Bool {
         focusSnapshot?.session.state == .running
     }
 
+    /// Index of the full card inside the visible deck, not the queue index.
+    private var expandedSlot: Int {
+        rows.firstIndex(where: { $0.card.isExpanded }) ?? 0
+    }
+
     var body: some View {
-        VStack(spacing: -overlap) {
-            ForEach(rows) { row in
-                deckSlot(row.card, position: row.position, isLast: row.isLast)
+        // Every card is as tall as the expanded card. Horizontal padding is only
+        // there so the light-mode shadow survives the clip that hides each card's
+        // lower body; the negative padding gives that width back to the queue.
+        WalletStackLayout(expandedSlot: CGFloat(expandedSlot), peekHeight: peekHeight) {
+            ForEach(Array(rows.enumerated()), id: \.element.id) { slot, row in
+                // Later cards paint above earlier ones so each top strip is all that shows.
+                deckSlot(row.card)
+                    .zIndex(Double(slot))
             }
         }
+        .padding(.horizontal, QueueSpacing.md)
+        .clipped()
+        .padding(.horizontal, -QueueSpacing.md)
         .geometryGroup()
         .animation(.easeInOut(duration: 0.2), value: focusIsRunning)
         .simultaneousGesture(flipGesture)
@@ -74,13 +83,8 @@ struct QueueStackDeckView: View {
 
     private var rows: [DeckRow] {
         let layout = StackDeckLayout.cards(taskCount: tasks.count, expandedIndex: expandedIndex)
-        return layout.enumerated().map { position, card in
-            DeckRow(
-                id: stableID(for: card),
-                position: position,
-                isLast: position == layout.count - 1,
-                card: card
-            )
+        return layout.map { card in
+            DeckRow(id: stableID(for: card), card: card)
         }
     }
 
@@ -97,8 +101,6 @@ struct QueueStackDeckView: View {
 
     private struct DeckRow: Identifiable {
         let id: String
-        let position: Int
-        let isLast: Bool
         let card: StackDeckLayout.Card
     }
 
@@ -118,7 +120,7 @@ struct QueueStackDeckView: View {
     }
 
     @ViewBuilder
-    private func deckSlot(_ card: StackDeckLayout.Card, position: Int, isLast: Bool) -> some View {
+    private func deckSlot(_ card: StackDeckLayout.Card) -> some View {
         switch card.role {
         case .task(let index):
             if tasks.indices.contains(index) {
@@ -126,14 +128,11 @@ struct QueueStackDeckView: View {
                     task: tasks[index],
                     index: index,
                     depth: card.depth,
-                    isExpanded: card.isExpanded,
-                    isLast: isLast
+                    isExpanded: card.isExpanded
                 )
-                .zIndex(Double(position))
             }
         case .overflow(let hidden, let first):
             overflowCard(hiddenCount: hidden, firstHiddenIndex: first, depth: card.depth)
-                .zIndex(Double(position))
         }
     }
 
@@ -141,8 +140,7 @@ struct QueueStackDeckView: View {
         task: QueueTask,
         index: Int,
         depth: Int,
-        isExpanded: Bool,
-        isLast: Bool
+        isExpanded: Bool
     ) -> some View {
         let live = index == 0 ? focusSnapshot : nil
         // A collapsed Now card has one VoiceOver element, so its label has to track the clock.
@@ -154,7 +152,6 @@ struct QueueStackDeckView: View {
                         index: index,
                         depth: depth,
                         isExpanded: false,
-                        isLast: isLast,
                         live: live,
                         label: accessibilityLabel(for: task, index: index, at: context.date, includeRemaining: true)
                     )
@@ -167,7 +164,6 @@ struct QueueStackDeckView: View {
                 index: index,
                 depth: depth,
                 isExpanded: isExpanded,
-                isLast: isLast,
                 live: live,
                 label: accessibilityLabel(for: task, index: index, at: Date(), includeRemaining: false)
             )
@@ -179,7 +175,6 @@ struct QueueStackDeckView: View {
         index: Int,
         depth: Int,
         isExpanded: Bool,
-        isLast: Bool,
         live: FocusWidgetSnapshot?,
         label: String
     ) -> some View {
@@ -191,16 +186,15 @@ struct QueueStackDeckView: View {
                 })
                 .transition(.opacity)
             } else {
-                Button {
-                    handleTap(index: index, isExpanded: false)
-                } label: {
-                    peekFace(task: task, index: index, live: live)
-                        .frame(height: peekSlotHeight(isLast: isLast), alignment: .top)
-                }
-                .buttonStyle(.plain)
-                .transition(.opacity)
+                peekFace(task: task, index: index, live: live)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        handleTap(index: index, isExpanded: false)
+                    }
+                    .transition(.opacity)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .modifier(
             StackCardChrome(
                 depth: depth,
@@ -222,10 +216,6 @@ struct QueueStackDeckView: View {
             onOpenFocus: index == 0 ? { onOpenFocus(task) } : nil,
             menu: cardMenu
         ))
-    }
-
-    private func peekSlotHeight(isLast: Bool) -> CGFloat {
-        isLast ? peekHeight : peekHeight + overlap
     }
 
     @ViewBuilder
@@ -264,7 +254,7 @@ struct QueueStackDeckView: View {
         }
         .padding(.horizontal, QueueSpacing.lg)
         .padding(.top, QueueSpacing.lg)
-        .padding(.bottom, QueueSpacing.lg + overlap)
+        .padding(.bottom, QueueSpacing.lg)
         .frame(
             maxWidth: .infinity,
             minHeight: index == 0 ? 300 : 180,
@@ -385,8 +375,8 @@ struct QueueStackDeckView: View {
             peekSubtitle(task: task, index: index, live: live)
         }
         .padding(.horizontal, QueueSpacing.lg)
-        .padding(.top, max(12, overlap + 4))
-        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding(.top, QueueSpacing.sm)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder
@@ -409,33 +399,31 @@ struct QueueStackDeckView: View {
     }
 
     private func overflowCard(hiddenCount: Int, firstHiddenIndex: Int, depth: Int) -> some View {
-        Button {
-            expand(firstHiddenIndex)
-        } label: {
-            Text(StackDeckLayout.overflowTitle(hiddenCount: hiddenCount))
-                .font(.headline)
-                .foregroundStyle(QueueColors.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, QueueSpacing.lg)
-                .padding(.top, max(12, overlap + 4))
-                .frame(height: peekHeight, alignment: .top)
-        }
-        .buttonStyle(.plain)
-        .modifier(
-            StackCardChrome(
-                depth: depth,
-                isNowCard: false,
-                focusIsRunning: focusIsRunning,
-                isDark: colorScheme == .dark,
-                increaseContrast: contrast == .increased
+        Text(StackDeckLayout.overflowTitle(hiddenCount: hiddenCount))
+            .font(.headline)
+            .foregroundStyle(QueueColors.textSecondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+            .padding(.horizontal, QueueSpacing.lg)
+            .padding(.top, QueueSpacing.sm)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                expand(firstHiddenIndex)
+            }
+            .modifier(
+                StackCardChrome(
+                    depth: depth,
+                    isNowCard: false,
+                    focusIsRunning: focusIsRunning,
+                    isDark: colorScheme == .dark,
+                    increaseContrast: contrast == .increased
+                )
             )
-        )
-        .accessibilityLabel(StackDeckLayout.overflowAccessibilityLabel(hiddenCount: hiddenCount))
-        .accessibilityHint("Shows the next tasks in the queue")
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction(named: Text("Expand")) { expand(firstHiddenIndex) }
+            .accessibilityLabel(StackDeckLayout.overflowAccessibilityLabel(hiddenCount: hiddenCount))
+            .accessibilityHint("Shows the next tasks in the queue")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction(named: Text("Expand")) { expand(firstHiddenIndex) }
     }
 
     private func companionBadge(live: FocusWidgetSnapshot?) -> some View {
@@ -539,6 +527,90 @@ struct QueueStackDeckView: View {
                 direction: direction
             )
         }
+    }
+}
+
+/// Places every card at the expanded card's height and steps the next top by the peek,
+/// so a back card's body continues under the card in front of it.
+private struct WalletStackLayout: Layout {
+    var expandedSlot: CGFloat
+    var peekHeight: CGFloat
+
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(expandedSlot, peekHeight) }
+        set {
+            expandedSlot = newValue.first
+            peekHeight = newValue.second
+        }
+    }
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout Void
+    ) -> CGSize {
+        let width = resolvedWidth(proposal: proposal, subviews: subviews)
+        let full = fullCardHeight(width: width, subviews: subviews)
+        let height = CGFloat(
+            StackDeckLayout.visibleStackHeight(
+                visibleCount: subviews.count,
+                fullHeight: Double(full),
+                peekHeight: Double(max(0, peekHeight))
+            )
+        )
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout Void
+    ) {
+        let full = fullCardHeight(width: bounds.width, subviews: subviews)
+        let childProposal = ProposedViewSize(width: bounds.width, height: full)
+        var slot = 0
+        for subview in subviews {
+            let y = CGFloat(
+                StackDeckLayout.cardTopOffset(
+                    slot: slot,
+                    expandedSlot: Double(expandedSlot),
+                    fullHeight: Double(full),
+                    peekHeight: Double(max(0, peekHeight))
+                )
+            )
+            subview.place(
+                at: CGPoint(x: bounds.minX, y: bounds.minY + y),
+                anchor: .topLeading,
+                proposal: childProposal
+            )
+            slot += 1
+        }
+    }
+
+    private func resolvedWidth(proposal: ProposedViewSize, subviews: Subviews) -> CGFloat {
+        if let width = proposal.width, width.isFinite, width > 0 {
+            return width
+        }
+        let fallback = subviews.first?.sizeThatFits(.unspecified).width ?? 0
+        return fallback.isFinite ? max(0, fallback) : 0
+    }
+
+    /// Ideal height of the tallest card. A nil height proposal asks for that ideal,
+    /// so a peek's flexible frame does not inflate the measurement, and a Spacer in
+    /// the expanded card does not grow the stack on the next pass.
+    private func fullCardHeight(width: CGFloat, subviews: Subviews) -> CGFloat {
+        guard width > 1, !subviews.isEmpty else { return max(peekHeight, 1) }
+        let proposal = ProposedViewSize(width: width, height: nil)
+        var tallest: CGFloat = 0
+        for subview in subviews {
+            let height = subview.sizeThatFits(proposal).height
+            if height.isFinite, height > 0, height < 8_000 {
+                tallest = max(tallest, height)
+            }
+        }
+        if tallest > 1 { return tallest }
+        return max(peekHeight + 32, 180)
     }
 }
 

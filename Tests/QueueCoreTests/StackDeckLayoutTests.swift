@@ -145,6 +145,44 @@ struct StackDeckLayoutTests {
         #expect(single[0].taskIndex == .some(0))
     }
 
+    @Test("Back cards keep a full-card body and only a peek between tops")
+    func walletCardOffsets() {
+        let full = 300.0
+        let peek = 72.0
+        #expect(StackDeckLayout.cardTopOffset(slot: 0, expandedSlot: 0, fullHeight: full, peekHeight: peek) == 0)
+        #expect(StackDeckLayout.cardTopOffset(slot: 1, expandedSlot: 0, fullHeight: full, peekHeight: peek) == full)
+        #expect(StackDeckLayout.cardTopOffset(slot: 2, expandedSlot: 0, fullHeight: full, peekHeight: peek) == full + peek)
+        #expect(StackDeckLayout.cardTopOffset(slot: 4, expandedSlot: 0, fullHeight: full, peekHeight: peek) == full + peek * 3)
+        #expect(StackDeckLayout.visibleStackHeight(visibleCount: 5, fullHeight: full, peekHeight: peek) == full + peek * 4)
+        #expect(StackDeckLayout.visibleStackHeight(visibleCount: 0, fullHeight: full, peekHeight: peek) == 0)
+
+        let above = StackDeckLayout.cardTopOffset(slot: 1, expandedSlot: 2, fullHeight: full, peekHeight: peek)
+        let expanded = StackDeckLayout.cardTopOffset(slot: 2, expandedSlot: 2, fullHeight: full, peekHeight: peek)
+        let below = StackDeckLayout.cardTopOffset(slot: 3, expandedSlot: 2, fullHeight: full, peekHeight: peek)
+        #expect(above == peek)
+        #expect(expanded - above == peek)
+        #expect(below - expanded == full)
+        // The card behind is full height, so it continues under the next card.
+        #expect((above + full) - expanded == full - peek)
+
+        let lastTop = StackDeckLayout.cardTopOffset(slot: 4, expandedSlot: 0, fullHeight: full, peekHeight: peek)
+        let stackHeight = StackDeckLayout.visibleStackHeight(visibleCount: 5, fullHeight: full, peekHeight: peek)
+        #expect(stackHeight - lastTop == peek)
+        #expect(lastTop + full > stackHeight)
+        #expect(StackDeckLayout.visibleStackHeight(visibleCount: 1, fullHeight: full, peekHeight: peek) == full)
+        #expect(StackDeckLayout.cardTopOffset(slot: 1, expandedSlot: 0, fullHeight: .nan, peekHeight: peek) == 0)
+
+        let mid = StackDeckLayout.cardTopOffset(slot: 1, expandedSlot: 0.5, fullHeight: full, peekHeight: peek)
+        let atRest = StackDeckLayout.cardTopOffset(slot: 1, expandedSlot: 0, fullHeight: full, peekHeight: peek)
+        let afterStep = StackDeckLayout.cardTopOffset(slot: 1, expandedSlot: 1, fullHeight: full, peekHeight: peek)
+        #expect(abs(mid - ((atRest + afterStep) / 2)) < 0.001)
+        #expect(
+            StackDeckLayout.cardTopOffset(slot: 2, expandedSlot: 1.0, fullHeight: full, peekHeight: peek)
+                == StackDeckLayout.cardTopOffset(slot: 2, expandedSlot: 1, fullHeight: full, peekHeight: peek)
+        )
+        #expect(StackDeckLayout.cardTopOffset(slot: 2, expandedSlot: .infinity, fullHeight: full, peekHeight: peek) == full + peek)
+    }
+
     @Test("Depth scale compounds by 0.97 and peeks track Dynamic Type")
     func depthAndPeekScale() {
         #expect(StackDeckLayout.depthScale(depth: 0) == 1)

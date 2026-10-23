@@ -10,7 +10,8 @@ public enum StackDeckLayout {
     public static let maxPeekingCards = 4
     /// Visible height of a peeking card at the default Dynamic Type size.
     public static let basePeekHeight: Double = 72
-    /// How far a lower card tucks under the card above. The visible peek stays `basePeekHeight`.
+    /// Kept so older call sites can describe a hairline tuck. The deck itself
+    /// overlaps by a full card minus the peek, not by this distance.
     public static let peekOverlap: Double = 8
     /// Each step further from the expanded card is this fraction of the card in front of it.
     public static let depthScaleStep: Double = 0.97
@@ -49,6 +50,61 @@ public enum StackDeckLayout {
     public static func motion(reduceMotion: Bool, allowsMotion: Bool) -> Motion {
         if reduceMotion || !allowsMotion { return .crossfade }
         return .spring
+    }
+
+    /// Top of a visible slot. Back cards are drawn at `fullHeight`; the next card
+    /// starts `peekHeight` lower, so only the top strip of the card behind shows.
+    /// The expanded card is the exception: the following card starts after its full height.
+    public static func cardTopOffset(
+        slot: Int,
+        expandedSlot: Int,
+        fullHeight: Double,
+        peekHeight: Double
+    ) -> Double {
+        let full = finiteNonNegative(fullHeight)
+        let peek = finiteNonNegative(peekHeight)
+        let index = max(0, slot)
+        let expanded = max(0, expandedSlot)
+        if index <= expanded {
+            return Double(index) * peek
+        }
+        return Double(expanded) * peek + full + Double(index - expanded - 1) * peek
+    }
+
+    /// Interpolates `cardTopOffset` while the expanded slot moves between cards.
+    /// Integer values match the discrete placement. In-between values slide the
+    /// full-height gap instead of jumping by a card.
+    public static func cardTopOffset(
+        slot: Int,
+        expandedSlot: Double,
+        fullHeight: Double,
+        peekHeight: Double
+    ) -> Double {
+        let full = finiteNonNegative(fullHeight)
+        let peek = finiteNonNegative(peekHeight)
+        let index = max(0, slot)
+        guard expandedSlot.isFinite else {
+            return cardTopOffset(slot: index, expandedSlot: 0, fullHeight: full, peekHeight: peek)
+        }
+        let clamped = max(0, expandedSlot)
+        let lower = Int(clamped.rounded(.down))
+        let upper = Int(clamped.rounded(.up))
+        let start = cardTopOffset(slot: index, expandedSlot: lower, fullHeight: full, peekHeight: peek)
+        if lower == upper { return start }
+        let end = cardTopOffset(slot: index, expandedSlot: upper, fullHeight: full, peekHeight: peek)
+        return start + (end - start) * (clamped - Double(lower))
+    }
+
+    /// Visible stack height: one full card, plus a peek for every other visible slot.
+    public static func visibleStackHeight(
+        visibleCount: Int,
+        fullHeight: Double,
+        peekHeight: Double
+    ) -> Double {
+        guard visibleCount > 0 else { return 0 }
+        let full = finiteNonNegative(fullHeight)
+        let peek = finiteNonNegative(peekHeight)
+        return full + peek * Double(visibleCount - 1)
     }
 
     /// `factor` is the Dynamic Type scale (1 at the default content size).
@@ -167,5 +223,10 @@ public enum StackDeckLayout {
 
     public static func overflowAccessibilityLabel(hiddenCount: Int) -> String {
         hiddenCount == 1 ? "1 more task" : "\(hiddenCount) more tasks"
+    }
+
+    private static func finiteNonNegative(_ value: Double) -> Double {
+        guard value.isFinite, value > 0 else { return 0 }
+        return value
     }
 }
