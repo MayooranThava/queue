@@ -6,6 +6,8 @@ struct FocusCountdownRing: View {
     let isExpired: Bool
     let isPaused: Bool
     let reduceMotion: Bool
+    /// Focus uses a heavier stroke. The stack's live card passes a thinner one.
+    var lineWidth: CGFloat = 6
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var pulse = false
@@ -13,7 +15,7 @@ struct FocusCountdownRing: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(QueueColors.textPrimary.opacity(0.18), lineWidth: 6)
+                .stroke(QueueColors.textPrimary.opacity(0.18), lineWidth: lineWidth)
 
             Circle()
                 .trim(from: 0, to: CGFloat(min(1, max(0, progress))))
@@ -22,14 +24,14 @@ struct FocusCountdownRing: View {
                         colors: ringColors,
                         center: .center
                     ),
-                    style: StrokeStyle(lineWidth: 6, lineCap: .round)
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
                 .animation(reduceMotion ? nil : QueueMotion.standard, value: progress)
 
             if isExpired && !reduceMotion {
                 Circle()
-                    .stroke(progressColor.opacity(0.35), lineWidth: 6)
+                    .stroke(progressColor.opacity(0.35), lineWidth: lineWidth)
                     .scaleEffect(pulse ? 1.04 : 1.0)
                     .opacity(pulse ? 0.35 : 0.7)
                     .onAppear {
