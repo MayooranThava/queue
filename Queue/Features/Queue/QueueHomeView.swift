@@ -19,6 +19,8 @@ struct QueueHomeView: View {
     @State private var editingTask: QueueTask?
     @State private var focusTask: QueueTask?
     @State private var errorMessage: String?
+    @State private var pendingQueueAction: PendingQueueAction?
+    @State private var queueActionInFlight = false
 
     private var activeTasks: [QueueTask] {
         taskEntities
@@ -97,6 +99,22 @@ struct QueueHomeView: View {
         } message: {
             Text(errorMessage ?? "")
         }
+        .confirmationDialog(
+            pendingQueueAction?.title ?? "Task",
+            isPresented: Binding(
+                get: { pendingQueueAction != nil },
+                set: { if !$0 { pendingQueueAction = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingQueueAction
+        ) { action in
+            Button(action.confirmButtonTitle, role: action.kind == .delete ? .destructive : nil) {
+                Task { await perform(action) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { action in
+            Text(action.message)
+        }
         .task {
             await services.configure(modelContext: modelContext)
         }
@@ -147,59 +165,96 @@ struct QueueHomeView: View {
     }
 
     private var populatedState: some View {
-        ScrollView {
-            LazyVStack(spacing: queuePresentationMode == "list" ? QueueSpacing.sm : 0) {
-                HStack {
-                    Text("\(activeTasks.count) tasks · ~\(remainingWorkMinutes) min")
-                        .font(QueueTypography.caption())
-                        .foregroundStyle(QueueColors.secondaryText)
-                    Spacer()
-                    Picker("Queue view", selection: $queuePresentationMode) {
-                        Text("Stack").tag("stack")
-                        Text("List").tag("list")
+        Group {
+            if queuePresentationMode == "list" {
+                listQueue
+            } else {
+                stackQueue
+            }
+        }
+    }
+
+    private var queueSummaryHeader: some View {
+        HStack {
+            Text("\(activeTasks.count) tasks · ~\(remainingWorkMinutes) min")
+                .font(QueueTypography.caption())
+                .foregroundStyle(QueueColors.secondaryText)
+            Spacer()
+            Picker("Queue view", selection: $queuePresentationMode) {
+                Text("Stack").tag("stack")
+                Text("List").tag("list")
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 180)
+            .accessibilityLabel("Queue presentation")
+        }
+    }
+
+    /// List mode uses row swipes. Stack mode keeps the vertical snap scroll, so actions live in the context menu.
+    private var listQueue: some View {
+        List {
+            queueSummaryHeader
+                .listRowInsets(EdgeInsets(
+                    top: QueueSpacing.sm,
+                    leading: QueueSpacing.md,
+                    bottom: QueueSpacing.sm,
+                    trailing: QueueSpacing.md
+                ))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            ForEach(Array(activeTasks.enumerated()), id: \.element.id) { index, task in
+                taskBlock(index: index, task: task)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: QueueSpacing.sm, trailing: 0))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            requestDelete(task)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        Button {
+                            requestSkip(task)
+                        } label: {
+                            Label("Skip", systemImage: "forward.end")
+                        }
+                        .tint(QueueColors.terracotta)
                     }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 180)
-                    .accessibilityLabel("Queue presentation")
-                }
-                .padding(.horizontal, QueueSpacing.md)
-                .padding(.vertical, QueueSpacing.sm)
-                ForEach(Array(activeTasks.enumerated()), id: \.element.id) { index, task in
-                    let isHead = index == 0
-                    Group {
-                        if isHead {
-                            ActiveTaskStackBlock(
-                                task: task,
-                                focusSnapshot: matchingSnapshot(for: task),
-                                blockIndex: index,
-                                onEdit: { editingTask = task },
-                                onFocus: { focusTask = task }
-                            )
-                        } else {
-                            UpcomingTaskStackBlock(
-                                task: task,
-                                showStartTime: showPlannedStartTimes,
-                                startTime: projectedStarts[task.id],
-                                blockIndex: index,
-                                canMoveUp: index > 1,
-                                canMoveDown: index < activeTasks.count - 1,
-                                onTap: { editingTask = task },
-                                onMoveUp: { moveTask(id: task.id, direction: -1) },
-                                onMoveDown: { moveTask(id: task.id, direction: 1) }
-                            )
+                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                        if canMoveToBottom(index: index) {
+                            Button {
+                                requestMoveToBottom(task)
+                            } label: {
+                                Label("Move to bottom", systemImage: "arrow.down.to.line")
+                            }
+                            .tint(QueueColors.sageDeep)
                         }
                     }
-                    .id(task.id)
-                    .frame(maxWidth: .infinity, minHeight: isHead ? 300 : (queuePresentationMode == "list" ? 112 : 168), alignment: .topLeading)
-                    .scrollTransition(
-                        topLeading: (reduceMotion || queuePresentationMode == "list") ? .identity : .animated(QueueMotion.stackScroll),
-                        bottomTrailing: (reduceMotion || queuePresentationMode == "list") ? .identity : .animated(QueueMotion.stackScroll)
-                    ) { content, phase in
-                        content
-                            .opacity(queuePresentationMode == "list" ? 1 : stackOpacity(for: phase))
-                            .scaleEffect(x: 1, y: queuePresentationMode == "list" ? 1 : stackScale(for: phase), anchor: .top)
-                            .offset(y: queuePresentationMode == "list" ? 0 : stackOffset(for: phase))
-                    }
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(QueueColors.background)
+        .environment(\.defaultMinListRowHeight, 1)
+    }
+
+    private var stackQueue: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                queueSummaryHeader
+                    .padding(.horizontal, QueueSpacing.md)
+                    .padding(.vertical, QueueSpacing.sm)
+                ForEach(Array(activeTasks.enumerated()), id: \.element.id) { index, task in
+                    taskBlock(index: index, task: task)
+                        .scrollTransition(
+                            topLeading: reduceMotion ? .identity : .animated(QueueMotion.stackScroll),
+                            bottomTrailing: reduceMotion ? .identity : .animated(QueueMotion.stackScroll)
+                        ) { content, phase in
+                            content
+                                .opacity(stackOpacity(for: phase))
+                                .scaleEffect(x: 1, y: stackScale(for: phase), anchor: .top)
+                                .offset(y: stackOffset(for: phase))
+                        }
                 }
             }
             .scrollTargetLayout()
@@ -207,6 +262,52 @@ struct QueueHomeView: View {
         .scrollIndicators(.hidden)
         .scrollTargetBehavior(.viewAligned)
         .background(QueueColors.background)
+    }
+
+    private func taskBlock(index: Int, task: QueueTask) -> some View {
+        let isHead = index == 0
+        let listMode = queuePresentationMode == "list"
+        let menu = QueueBlockMenu(
+            onEdit: { editingTask = task },
+            onMoveUp: index > 1 ? { moveTask(id: task.id, direction: -1) } : nil,
+            onMoveDown: (index > 0 && index < activeTasks.count - 1) ? { moveTask(id: task.id, direction: 1) } : nil,
+            onMoveToBottom: canMoveToBottom(index: index) ? { requestMoveToBottom(task) } : nil,
+            onSkip: { requestSkip(task) },
+            onDelete: { requestDelete(task) }
+        )
+        return Group {
+            if isHead {
+                ActiveTaskStackBlock(
+                    task: task,
+                    focusSnapshot: matchingSnapshot(for: task),
+                    blockIndex: index,
+                    menu: menu,
+                    onEdit: { editingTask = task },
+                    onFocus: { focusTask = task }
+                )
+            } else {
+                UpcomingTaskStackBlock(
+                    task: task,
+                    showStartTime: showPlannedStartTimes,
+                    startTime: projectedStarts[task.id],
+                    blockIndex: index,
+                    listMode: listMode,
+                    menu: menu,
+                    onTap: { editingTask = task }
+                )
+            }
+        }
+        .id(task.id)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: isHead ? 300 : (listMode ? 112 : 168),
+            alignment: .topLeading
+        )
+        .accessibilityAction(named: Text("Skip")) { requestSkip(task) }
+        .accessibilityAction(named: Text("Delete")) { requestDelete(task) }
+        .modifier(MoveToBottomAccessibilityAction(enabled: canMoveToBottom(index: index)) {
+            requestMoveToBottom(task)
+        })
     }
 
     private func stackOpacity(for phase: ScrollTransitionPhase) -> Double {
@@ -278,6 +379,67 @@ struct QueueHomeView: View {
         }
     }
 
+    private func canMoveToBottom(index: Int) -> Bool {
+        activeTasks.count > 1 && index < activeTasks.count - 1
+    }
+
+    private func requestDelete(_ task: QueueTask) {
+        Task { await presentOrPerform(.delete, task: task, alwaysConfirm: true) }
+    }
+
+    private func requestSkip(_ task: QueueTask) {
+        Task { await presentOrPerform(.skip, task: task, alwaysConfirm: false) }
+    }
+
+    private func requestMoveToBottom(_ task: QueueTask) {
+        guard let index = activeTasks.firstIndex(where: { $0.id == task.id }),
+              canMoveToBottom(index: index) else { return }
+        Task { await presentOrPerform(.moveToBottom, task: task, alwaysConfirm: false) }
+    }
+
+    /// Delete always confirms. Skip and move-to-bottom confirm only when they would end focus.
+    private func presentOrPerform(
+        _ kind: PendingQueueAction.Kind,
+        task: QueueTask,
+        alwaysConfirm: Bool
+    ) async {
+        guard pendingQueueAction == nil, !queueActionInFlight else { return }
+        let sessionLive = await services.taskRepository?.hasLiveFocusSession(for: task.id) ?? false
+        let endsFocus = ActiveTaskEditPolicy.mustAcknowledgeFocusEnd(
+            status: task.status,
+            hasLiveSession: sessionLive
+        )
+        let request = PendingQueueAction(kind: kind, task: task, endsFocus: endsFocus)
+        if alwaysConfirm || endsFocus {
+            pendingQueueAction = request
+        } else {
+            await perform(request)
+        }
+    }
+
+    private func perform(_ action: PendingQueueAction) async {
+        guard !queueActionInFlight else { return }
+        queueActionInFlight = true
+        defer { queueActionInFlight = false }
+        guard let repository = services.taskRepository else {
+            errorMessage = "Queue isn't ready yet."
+            return
+        }
+        do {
+            switch action.kind {
+            case .delete:
+                try await repository.delete(id: action.taskID, endFocus: action.endsFocus)
+            case .skip:
+                _ = try await repository.skip(id: action.taskID, endFocus: action.endsFocus)
+            case .moveToBottom:
+                _ = try await repository.requeue(id: action.taskID, endFocus: action.endsFocus)
+            }
+            await services.refreshFocusSnapshot()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     /// Moves an upcoming task within the active queue (head stays at index 0).
     private func moveTask(id: UUID, direction: Int) {
         guard let index = activeTasks.firstIndex(where: { $0.id == id }), index > 0 else { return }
@@ -308,10 +470,53 @@ struct QueueHomeView: View {
 
 // MARK: - Stack blocks
 
+private struct QueueBlockMenu {
+    var onEdit: () -> Void
+    var onMoveUp: (() -> Void)?
+    var onMoveDown: (() -> Void)?
+    var onMoveToBottom: (() -> Void)?
+    var onSkip: () -> Void
+    var onDelete: () -> Void
+}
+
+private struct QueueBlockInteractions: ViewModifier {
+    let menu: QueueBlockMenu
+
+    func body(content: Content) -> some View {
+        content.contextMenu {
+            Button(action: menu.onEdit) {
+                Label("Edit", systemImage: "pencil")
+            }
+            if let onMoveUp = menu.onMoveUp {
+                Button(action: onMoveUp) {
+                    Label("Move up", systemImage: "arrow.up")
+                }
+            }
+            if let onMoveDown = menu.onMoveDown {
+                Button(action: onMoveDown) {
+                    Label("Move down", systemImage: "arrow.down")
+                }
+            }
+            if let onMoveToBottom = menu.onMoveToBottom {
+                Button(action: onMoveToBottom) {
+                    Label("Move to bottom", systemImage: "arrow.down.to.line")
+                }
+            }
+            Button(action: menu.onSkip) {
+                Label("Skip", systemImage: "forward.end")
+            }
+            Button(role: .destructive, action: menu.onDelete) {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+}
+
 private struct ActiveTaskStackBlock: View {
     let task: QueueTask
     let focusSnapshot: FocusWidgetSnapshot?
     let blockIndex: Int
+    let menu: QueueBlockMenu
     var onEdit: () -> Void
     var onFocus: () -> Void
 
@@ -398,6 +603,8 @@ private struct ActiveTaskStackBlock: View {
         .padding(.vertical, QueueSpacing.xl)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(QueueColors.stackBlock(index: blockIndex))
+        .contentShape(Rectangle())
+        .modifier(QueueBlockInteractions(menu: menu))
         .accessibilityElement(children: .contain)
     }
 
@@ -475,11 +682,9 @@ private struct UpcomingTaskStackBlock: View {
     let showStartTime: Bool
     let startTime: Date?
     let blockIndex: Int
-    let canMoveUp: Bool
-    let canMoveDown: Bool
+    let listMode: Bool
+    let menu: QueueBlockMenu
     var onTap: () -> Void
-    var onMoveUp: () -> Void
-    var onMoveDown: () -> Void
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -488,54 +693,42 @@ private struct UpcomingTaskStackBlock: View {
     }()
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(alignment: .top, spacing: QueueSpacing.md) {
-                VStack(alignment: .leading, spacing: QueueSpacing.xs) {
-                    Text(task.title.uppercased())
-                        .font(QueueTypography.title(26))
-                        .foregroundStyle(QueueColors.primaryText)
-                        .lineLimit(3)
-                        .minimumScaleFactor(0.8)
-                        .multilineTextAlignment(.leading)
+        HStack(alignment: .top, spacing: QueueSpacing.md) {
+            VStack(alignment: .leading, spacing: QueueSpacing.xs) {
+                Text(task.title.uppercased())
+                    .font(QueueTypography.title(26))
+                    .foregroundStyle(QueueColors.primaryText)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.8)
+                    .multilineTextAlignment(.leading)
 
-                    Text(subtitle)
-                        .font(QueueTypography.body(15))
-                        .foregroundStyle(QueueColors.secondaryText)
-                }
-                Spacer(minLength: QueueSpacing.sm)
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(QueueColors.secondaryText.opacity(0.7))
-                    .padding(.top, 6)
-                    .accessibilityHidden(true)
+                Text(subtitle)
+                    .font(QueueTypography.body(15))
+                    .foregroundStyle(QueueColors.secondaryText)
             }
-            .padding(.horizontal, QueueSpacing.lg)
-            .padding(.vertical, QueueSpacing.xl)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(QueueColors.stackBlock(index: blockIndex))
-            .contentShape(Rectangle())
+            Spacer(minLength: QueueSpacing.sm)
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(QueueColors.secondaryText.opacity(0.7))
+                .padding(.top, 6)
+                .accessibilityHidden(true)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, QueueSpacing.lg)
+        .padding(.vertical, QueueSpacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(QueueColors.stackBlock(index: blockIndex))
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
+        .modifier(QueueBlockInteractions(menu: menu))
         .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
         .accessibilityLabel("\(task.title), \(subtitle)")
-        .accessibilityHint("Double tap to edit. Use the context menu to reorder.")
-        .contextMenu {
-            Button("Edit") { onTap() }
-            if canMoveUp {
-                Button {
-                    onMoveUp()
-                } label: {
-                    Label("Move up", systemImage: "arrow.up")
-                }
-            }
-            if canMoveDown {
-                Button {
-                    onMoveDown()
-                } label: {
-                    Label("Move down", systemImage: "arrow.down")
-                }
-            }
-        }
+        .accessibilityHint(
+            listMode
+                ? "Double tap to edit. Swipe to skip, move to the bottom, or delete."
+                : "Double tap to edit. Long press to reorder, skip, or delete."
+        )
+        .accessibilityAction(.default) { onTap() }
     }
 
     private var subtitle: String {
@@ -544,5 +737,60 @@ private struct UpcomingTaskStackBlock: View {
             return "\(prefix) \(Self.timeFormatter.string(from: startTime)) · \(task.difficulty.displayName)"
         }
         return "\(max(1, Int(task.estimatedDuration / 60))) min · \(task.difficulty.displayName)"
+    }
+}
+
+private struct PendingQueueAction: Identifiable {
+    enum Kind {
+        case delete
+        case skip
+        case moveToBottom
+    }
+
+    let id = UUID()
+    let taskID: UUID
+    let kind: Kind
+    let endsFocus: Bool
+    let title: String
+    let message: String
+
+    init(kind: Kind, task: QueueTask, endsFocus: Bool) {
+        self.taskID = task.id
+        self.kind = kind
+        self.endsFocus = endsFocus
+        switch kind {
+        case .delete:
+            title = "Delete this task?"
+            message = endsFocus
+                ? "This ends focus on “\(task.title)” and removes it from your queue. Nothing else starts on its own."
+                : "“\(task.title)” will leave your queue."
+        case .skip:
+            title = "Skip this task?"
+            message = "This ends focus on “\(task.title)” and removes it from your queue. Nothing else starts on its own."
+        case .moveToBottom:
+            title = "Move this task to the bottom?"
+            message = "This ends focus on “\(task.title)” and places it at the bottom of your queue. Nothing else starts on its own."
+        }
+    }
+
+    var confirmButtonTitle: String {
+        switch kind {
+        case .delete: return "Delete"
+        case .skip: return "Skip"
+        case .moveToBottom: return "Move to bottom"
+        }
+    }
+}
+
+private struct MoveToBottomAccessibilityAction: ViewModifier {
+    let enabled: Bool
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.accessibilityAction(named: Text("Move to bottom")) { action() }
+        } else {
+            content
+        }
     }
 }

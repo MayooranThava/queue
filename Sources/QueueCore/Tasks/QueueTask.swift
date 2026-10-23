@@ -34,11 +34,14 @@ public struct QueueTask: Identifiable, Codable, Sendable, Equatable {
     public var xpAwardID: UUID?
     public var modifiedAt: Date
 
+    /// New tasks start as a 15-minute block. Stored tasks keep whatever estimate they were saved with.
+    public static let defaultEstimatedDuration: TimeInterval = 15 * 60
+
     public init(
         id: UUID = UUID(),
         title: String,
         notes: String? = nil,
-        estimatedDuration: TimeInterval = 25 * 60,
+        estimatedDuration: TimeInterval = QueueTask.defaultEstimatedDuration,
         difficulty: TaskDifficulty = .medium,
         plannedStartAt: Date? = nil,
         createdAt: Date = Date(),

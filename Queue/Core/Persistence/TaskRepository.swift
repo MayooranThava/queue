@@ -2,6 +2,17 @@ import Foundation
 import SwiftData
 import QueueCore
 
+enum TaskRepositoryError: LocalizedError {
+    case focusEndNotAcknowledged
+
+    var errorDescription: String? {
+        switch self {
+        case .focusEndNotAcknowledged:
+            return "This task is in focus. End that session before skipping, moving, or deleting it."
+        }
+    }
+}
+
 struct FocusCompletionOutcome: Sendable {
     let task: QueueTask
     let award: RewardAwardResult
@@ -239,14 +250,50 @@ final class TaskRepository {
         return task
     }
 
-    func delete(id: UUID) async throws {
-        _ = try await queueService.archive(id: id)
-        let descriptor = FetchDescriptor<TaskEntity>(predicate: #Predicate { $0.id == id })
-        if let entity = try context.fetch(descriptor).first {
-            entity.status = .archived
-            entity.modifiedAt = Date()
-            try context.save()
+    /// Removes the task from the active queue by archiving it.
+    /// Pass `endFocus: true` only after the user agrees to stop a running session.
+    func delete(id: UUID, endFocus: Bool = false) async throws {
+        try await ensureFocusChangeIsExplicit(for: id, endFocus: endFocus)
+        let task = try await queueService.archive(id: id)
+        try upsert(task)
+        try await clearFocusSession(for: id)
+    }
+
+    /// Drops the task out of the active queue. It can be requeued later.
+    func skip(id: UUID, endFocus: Bool = false) async throws -> QueueTask {
+        try await ensureFocusChangeIsExplicit(for: id, endFocus: endFocus)
+        let task = try await queueService.skip(id: id)
+        try upsert(task)
+        try await clearFocusSession(for: id)
+        return task
+    }
+
+    /// Places the task at the bottom of the stack. Other tasks keep their order.
+    func requeue(id: UUID, endFocus: Bool = false) async throws -> QueueTask {
+        try await ensureFocusChangeIsExplicit(for: id, endFocus: endFocus)
+        let task = try await queueService.requeue(id: id)
+        for item in await queueService.activeQueue() {
+            try upsert(item)
         }
+        if await queueService.task(id: id)?.isInActiveQueue != true {
+            try upsert(task)
+        }
+        try await clearFocusSession(for: id)
+        return await queueService.task(id: id) ?? task
+    }
+
+    func hasLiveFocusSession(for taskID: UUID) async -> Bool {
+        if let session = await timerEngine.currentSession(),
+           session.taskID == taskID,
+           session.state == .running || session.state == .paused || session.state == .expired {
+            return true
+        }
+        if let snapshot = FocusActivityStore.load(),
+           snapshot.taskID == taskID,
+           snapshot.isActivelyTiming {
+            return true
+        }
+        return false
     }
 
     // MARK: - Session persistence
@@ -381,6 +428,36 @@ final class TaskRepository {
         )
         for entity in try context.fetch(descriptor) {
             context.delete(entity)
+        }
+    }
+
+    private func ensureFocusChangeIsExplicit(for taskID: UUID, endFocus: Bool) async throws {
+        guard let task = await queueService.task(id: taskID) else {
+            throw TaskTransitionError.taskNotFound
+        }
+        let sessionLive = await hasLiveFocusSession(for: taskID)
+        let needsAcknowledgement = ActiveTaskEditPolicy.mustAcknowledgeFocusEnd(
+            status: task.status,
+            hasLiveSession: sessionLive
+        )
+        if needsAcknowledgement && !endFocus {
+            throw TaskRepositoryError.focusEndNotAcknowledged
+        }
+    }
+
+    /// Stops the timer only when it belongs to this task. A session for a different task stays up.
+    private func clearFocusSession(for taskID: UUID) async throws {
+        if let current = await timerEngine.currentSession(), current.taskID == taskID {
+            await timerEngine.clear()
+            FocusActivityStore.clear()
+            try clearPersistedSession()
+            return
+        }
+        guard FocusActivityStore.load()?.taskID == taskID else { return }
+        FocusActivityStore.clear()
+        let descriptor = FetchDescriptor<FocusSessionEntity>()
+        if let entity = try context.fetch(descriptor).first, entity.taskID == taskID {
+            try clearPersistedSession()
         }
     }
 
