@@ -1,5 +1,7 @@
 # Queue
 
+[![Queue CI](https://github.com/MayooranThava/queue/actions/workflows/ci.yml/badge.svg)](https://github.com/MayooranThava/queue/actions/workflows/ci.yml)
+
 One task at a time. Small tasks. Real progress.
 
 Queue is a premium iOS productivity app: a FIFO task queue, a reliable focus timer, and a calm companion with XP rewards. Local-first, privacy-conscious, and built for App Store quality.
@@ -55,6 +57,10 @@ swift test
 ```
 
 These cover FIFO ordering, timer lifecycle, idempotent XP awards, and Smart Gaps.
+
+## Continuous integration
+
+Pull requests and pushes to `main` run the **Queue CI** check on a macOS 26 runner with Xcode 26.6. It runs `swift test` for QueueCore, builds the Queue scheme for an iPhone simulator, and runs the `QueueTests` target. See [Testing](Docs/TESTING.md).
 
 ## Documentation
 

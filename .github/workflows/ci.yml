@@ -1,0 +1,148 @@
+name: CI
+
+# Branch protection can require the job name "Queue CI"
+# (displayed as "CI / Queue CI").
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  queue-ci:
+    name: Queue CI
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      NSUnbufferedIO: "YES"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Select Xcode 26.6
+        run: |
+          set -euo pipefail
+          if [ ! -d "$DEVELOPER_DIR" ]; then
+            echo "Xcode 26.6 is not installed on this image." >&2
+            ls -d /Applications/Xcode*.app >&2 || true
+            exit 1
+          fi
+          sudo xcode-select -s "$DEVELOPER_DIR"
+          xcodebuild -version
+          swift --version
+          # Skip interactive trust prompts if a future package adds plugins or macros.
+          defaults write com.apple.dt.Xcode IDESkipPackagePluginFingerprintValidatation -bool YES || true
+          defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES || true
+          {
+            echo "### Toolchain"
+            xcodebuild -version | sed 's/^/- /'
+            echo "- Runner: macos-26"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Restore build cache
+        id: cache
+        continue-on-error: true
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            .build
+            DerivedData/Build
+            DerivedData/SourcePackages
+          # Bump the ios-v1 prefix to discard DerivedData after a signing or toolchain change.
+          key: ios-v1-${{ runner.os }}-xcode-26.6-${{ github.sha }}
+          restore-keys: |
+            ios-v1-${{ runner.os }}-xcode-26.6-
+
+      - name: Select iPhone simulator
+        id: simulator
+        run: |
+          set -euo pipefail
+          destination="$(python3 .github/ci/select-iphone-simulator.py)"
+          if [ -z "$destination" ]; then
+            echo "Simulator selection returned an empty destination." >&2
+            exit 1
+          fi
+          echo "destination=$destination" >> "$GITHUB_OUTPUT"
+          echo "Selected destination: $destination"
+          echo "- Simulator: \`$destination\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Test QueueCore
+        env:
+          destination: ${{ steps.simulator.outputs.destination }}
+        run: |
+          set -euo pipefail
+          if [ -z "${destination:-}" ]; then
+            echo "Missing simulator destination." >&2
+            exit 1
+          fi
+          udid="${destination##*id=}"
+          # Boot while domain tests compile so the simulator is warm for xcodebuild.
+          xcrun simctl boot "$udid" || true
+          xcrun simctl bootstatus "$udid" -b &
+          boot_pid=$!
+          start=$SECONDS
+          set +e
+          swift test --package-path . --xunit-output "${RUNNER_TEMP}/queuecore.xml"
+          test_status=$?
+          set -e
+          echo "- QueueCore \`swift test\`: $((SECONDS - start))s" >> "$GITHUB_STEP_SUMMARY"
+          if ! wait "$boot_pid"; then
+            echo "::warning::Simulator was still booting after QueueCore tests; the iOS steps will boot it again."
+          fi
+          exit "$test_status"
+
+      - name: Prepare ad-hoc simulator signing
+        run: python3 .github/ci/prepare-simulator-signing.py
+
+      - name: Build Queue for iOS Simulator
+        env:
+          DESTINATION: ${{ steps.simulator.outputs.destination }}
+        run: |
+          set -euo pipefail
+          start=$SECONDS
+          bash .github/ci/xcodebuild-simulator.sh build "$DESTINATION"
+          echo "- iOS simulator build: $((SECONDS - start))s" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Test Queue app on iOS Simulator
+        env:
+          DESTINATION: ${{ steps.simulator.outputs.destination }}
+        run: |
+          set -euo pipefail
+          udid="${DESTINATION##*id=}"
+          xcrun simctl boot "$udid" || true
+          xcrun simctl bootstatus "$udid" -b
+          start=$SECONDS
+          bash .github/ci/xcodebuild-simulator.sh test "$DESTINATION"
+          echo "- QueueTests on simulator: $((SECONDS - start))s" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: queue-ci-results
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            ${{ runner.temp }}/queuecore.xml
+            ${{ runner.temp }}/xcodebuild-build.log
+            ${{ runner.temp }}/xcodebuild-test.log
+            ${{ runner.temp }}/QueueTests.xcresult
+
+      - name: Save build cache
+        if: success() && steps.cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            .build
+            DerivedData/Build
+            DerivedData/SourcePackages
+          key: ios-v1-${{ runner.os }}-xcode-26.6-${{ github.sha }}

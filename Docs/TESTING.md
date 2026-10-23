@@ -65,6 +65,12 @@ xcodegen generate
 xcodebuild -scheme Queue -destination 'platform=iOS Simulator,name=iPhone 16 Pro' test
 ```
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every pull request and every push to `main`. The check name to require in branch protection is **Queue CI**.
+
+The job uses the `macos-26` runner and Xcode 26.6. It runs `swift test` for QueueCore, builds the `Queue` scheme for an available iPhone simulator, and runs the `QueueTests` unit-test target. The hosted runner has no Apple signing certificate, so that job ad-hoc signs the simulator build and replaces the App Group entitlement with an empty file in the checkout only. The committed project still uses Automatic signing for local devices.
+
 ## Reporting honesty
 
 Do not claim compilation or test success without executing the relevant command. Document environment limits (e.g. Linux cannot build the iOS app target).

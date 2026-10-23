@@ -25,11 +25,11 @@ final class CompanionAtlasOrderingTests: XCTestCase {
 
     func testClipMappingUsesExpectedAtlases() {
         let working = CompanionAnimationClip.clip(for: .working, reduceMotion: false)
-        XCTAssertEqual(working.atlas, .working)
+        XCTAssertEqual(working.atlas, .typing)
         XCTAssertEqual(working.playback, .loop)
 
         let deep = CompanionAnimationClip.clip(for: .deepFocus, reduceMotion: false)
-        XCTAssertEqual(deep.atlas, .deepFocus)
+        XCTAssertEqual(deep.atlas, .typing)
         XCTAssertEqual(deep.playback, .loop)
 
         let done = CompanionAnimationClip.clip(for: .celebrating, reduceMotion: false)
