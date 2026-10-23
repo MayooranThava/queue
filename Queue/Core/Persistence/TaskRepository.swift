@@ -26,19 +26,25 @@ final class TaskRepository {
     private let timerEngine: FocusTimerEngine
     private let rewardEngine: RewardEngine
     private let analytics: AnalyticsClient
+    private let focusAlertSync: FocusEndNotificationSync
+    private let notificationAuthorizer: any FocusNotificationAuthorizing
 
     init(
         context: ModelContext,
         queueService: TaskQueueService = TaskQueueService(),
         timerEngine: FocusTimerEngine = FocusTimerEngine(),
         rewardEngine: RewardEngine = RewardEngine(),
-        analytics: AnalyticsClient = InMemoryAnalyticsClient()
+        analytics: AnalyticsClient = InMemoryAnalyticsClient(),
+        focusNotifications: any FocusEndNotificationScheduling = NoOpFocusEndNotificationScheduler(),
+        notificationAuthorizer: any FocusNotificationAuthorizing = SilentFocusNotificationAuthorizer()
     ) {
         self.context = context
         self.queueService = queueService
         self.timerEngine = timerEngine
         self.rewardEngine = rewardEngine
         self.analytics = analytics
+        self.focusAlertSync = FocusEndNotificationSync(scheduler: focusNotifications)
+        self.notificationAuthorizer = notificationAuthorizer
     }
 
     func bootstrapFromStore() async throws {
@@ -113,6 +119,7 @@ final class TaskRepository {
         if let live = await liveSession(for: taskID) {
             let snapped = await timerEngine.snapshotted() ?? live
             try persistSession(snapped)
+            await publishFocusAlert(snapped, prompt: true)
             return snapped
         }
 
@@ -132,6 +139,7 @@ final class TaskRepository {
                 plannedDuration: plannedDuration
             )
             try persistSession(session)
+            await publishFocusAlert(session, prompt: true)
             return session
 
         case .active, .expired:
@@ -142,6 +150,7 @@ final class TaskRepository {
                 plannedDuration: plannedDuration
             )
             try persistSession(session)
+            await publishFocusAlert(session, prompt: true)
             return session
 
         case .paused:
@@ -155,6 +164,7 @@ final class TaskRepository {
                 plannedDuration: plannedDuration
             )
             try persistSession(session)
+            await publishFocusAlert(session, prompt: true)
             return session
 
         default:
@@ -168,6 +178,7 @@ final class TaskRepository {
         try upsert(task)
         let session = try await timerEngine.pause()
         try persistSession(session)
+        await publishFocusAlert(session, prompt: false)
         return session
     }
 
@@ -177,6 +188,7 @@ final class TaskRepository {
         try upsert(task)
         let session = try await timerEngine.resume()
         try persistSession(session)
+        await publishFocusAlert(session, prompt: true)
         return session
     }
 
@@ -184,6 +196,7 @@ final class TaskRepository {
         let session = try await timerEngine.extend(by: duration)
         try persistSession(session)
         analytics.track(.taskExtended(taskID: session.taskID))
+        await publishFocusAlert(session, prompt: true)
         return session
     }
 
@@ -191,6 +204,7 @@ final class TaskRepository {
         let session = await timerEngine.evaluateExpiry()
         if let session {
             try persistSession(session)
+            await publishFocusAlert(session, prompt: false)
             if session.state == .expired {
                 _ = try? await queueService.expire(id: session.taskID)
                 if let task = await queueService.task(id: session.taskID) {
@@ -226,6 +240,7 @@ final class TaskRepository {
         }
         try persistSession(session)
         try context.save()
+        await publishFocusAlert(session, prompt: false)
         return FocusCompletionOutcome(task: task, award: award, sourceEventID: sourceEventID)
     }
 
@@ -246,6 +261,7 @@ final class TaskRepository {
 
         await timerEngine.clear()
         try clearPersistedSession()
+        await syncFocusAlert(nil)
         try context.save()
         return task
     }
@@ -309,6 +325,7 @@ final class TaskRepository {
         // Drop terminal sessions left on disk.
         if session.state == .completed || session.state == .idle {
             try clearPersistedSession()
+            await syncFocusAlert(nil)
             return
         }
 
@@ -316,6 +333,7 @@ final class TaskRepository {
               task.status == .active || task.status == .paused || task.status == .expired
         else {
             try clearPersistedSession()
+            await syncFocusAlert(nil)
             return
         }
 
@@ -323,6 +341,7 @@ final class TaskRepository {
         if let snapped = await timerEngine.snapshotted() {
             session = snapped
             try persistSession(session)
+            await publishFocusAlert(session, prompt: false)
             if session.state == .expired, task.status != .expired {
                 _ = try? await queueService.expire(id: session.taskID)
                 if let updated = await queueService.task(id: session.taskID) {
@@ -394,24 +413,30 @@ final class TaskRepository {
     }
 
     func currentFocusSnapshot() async -> FocusWidgetSnapshot? {
-        guard let session = await timerEngine.snapshotted(),
-              session.state == .running || session.state == .paused || session.state == .expired,
-              let task = await queueService.task(id: session.taskID)
-        else {
-            if let loaded = FocusActivityStore.load(), loaded.isActivelyTiming {
-                return loaded
+        if let session = await timerEngine.snapshotted(),
+           session.state == .running || session.state == .paused || session.state == .expired {
+            if let task = await queueService.task(id: session.taskID) {
+                let snapshot = FocusWidgetSnapshot(
+                    taskID: task.id,
+                    taskTitle: task.title,
+                    difficultyDisplayName: task.difficulty.displayName,
+                    estimatedDuration: task.estimatedDuration,
+                    session: session
+                )
+                FocusActivityStore.save(snapshot)
+                await syncFocusAlert(session, taskTitle: task.title)
+                return snapshot
             }
+            // Keep the alert tied to the in-memory session even if the row lookup missed.
+            await syncFocusAlert(session)
             return nil
         }
-        let snapshot = FocusWidgetSnapshot(
-            taskID: task.id,
-            taskTitle: task.title,
-            difficultyDisplayName: task.difficulty.displayName,
-            estimatedDuration: task.estimatedDuration,
-            session: session
-        )
-        FocusActivityStore.save(snapshot)
-        return snapshot
+        if let loaded = FocusActivityStore.load(), loaded.isActivelyTiming {
+            await syncFocusAlert(loaded.session, taskTitle: loaded.taskTitle)
+            return loaded
+        }
+        await syncFocusAlert(nil)
+        return nil
     }
 
     private func resolveSourceEventID(for snapshot: QueueTask) throws -> UUID? {
@@ -451,6 +476,7 @@ final class TaskRepository {
             await timerEngine.clear()
             FocusActivityStore.clear()
             try clearPersistedSession()
+            await syncFocusAlert(nil)
             return
         }
         guard FocusActivityStore.load()?.taskID == taskID else { return }
@@ -458,7 +484,41 @@ final class TaskRepository {
         let descriptor = FetchDescriptor<FocusSessionEntity>()
         if let entity = try context.fetch(descriptor).first, entity.taskID == taskID {
             try clearPersistedSession()
+            if await timerEngine.currentSession() == nil {
+                await syncFocusAlert(nil)
+            }
         }
+    }
+
+    /// Keeps the pending focus-end alert aligned with the session.
+    /// Permission is requested only when a user action is about to run the timer.
+    private func publishFocusAlert(_ session: FocusSession, prompt: Bool) async {
+        if prompt {
+            await authorizeAlertsIfNeeded(session)
+        }
+        await syncFocusAlert(session)
+    }
+
+    private func authorizeAlertsIfNeeded(_ session: FocusSession) async {
+        guard session.state == .running else { return }
+        let status = await notificationAuthorizer.authorizationStatus()
+        guard FocusNotificationPermissionPolicy.shouldRequest(
+            status: status,
+            reason: .focusStartOrResume
+        ) else { return }
+        _ = await notificationAuthorizer.requestAuthorization()
+    }
+
+    private func syncFocusAlert(_ session: FocusSession?, taskTitle: String? = nil) async {
+        let title: String
+        if let taskTitle {
+            title = taskTitle
+        } else if let session, let task = await queueService.task(id: session.taskID) {
+            title = task.title
+        } else {
+            title = ""
+        }
+        await focusAlertSync.sync(session: session, taskTitle: title, now: Date())
     }
 
     private func requireTask(_ id: UUID) async throws -> QueueTask {

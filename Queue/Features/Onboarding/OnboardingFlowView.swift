@@ -12,6 +12,7 @@ struct OnboardingFlowView: View {
     @State private var firstTaskTitle = ""
     @State private var firstTaskMinutes = DurationEstimate.defaultMinutes
     @State private var firstTaskDifficulty: TaskDifficulty = .medium
+    @State private var notificationAuthorization: FocusNotificationAuthorization = .notDetermined
 
     var body: some View {
         NavigationStack {
@@ -38,6 +39,10 @@ struct OnboardingFlowView: View {
         }
         .task {
             await services.configure(modelContext: modelContext)
+        }
+        .onChange(of: step) { _, newStep in
+            guard newStep == 4 else { return }
+            Task { await refreshNotificationAuthorization() }
         }
     }
 
@@ -131,12 +136,38 @@ struct OnboardingFlowView: View {
             Spacer()
             Text("Gentle reminders")
                 .font(QueueTypography.title(32))
-            Text("We’ll ask for notification permission only when a focus timer needs to alert you. No guilt streaks.")
+                .foregroundStyle(QueueColors.primaryText)
+            Text("When a focus block ends, Queue can send an alert that names the task — even if your phone is locked. No guilt streaks.")
                 .font(QueueTypography.body())
                 .foregroundStyle(QueueColors.secondaryText)
+            notificationStatusCopy
+            if notificationAuthorization == .notDetermined {
+                Button("Allow focus alerts") {
+                    Task { await allowFocusAlerts() }
+                }
+                .buttonStyle(QueueSecondaryButtonStyle())
+            }
             Spacer()
         }
         .padding(QueueSpacing.xl)
+    }
+
+    @ViewBuilder
+    private var notificationStatusCopy: some View {
+        switch notificationAuthorization {
+        case .notDetermined:
+            Text("You can allow alerts now, or Queue will ask the first time a focus timer starts.")
+                .font(QueueTypography.caption())
+                .foregroundStyle(QueueColors.secondaryText)
+        case .authorized:
+            Text("Focus alerts are on. Queue will ping you when the block ends.")
+                .font(QueueTypography.caption())
+                .foregroundStyle(QueueColors.secondaryText)
+        case .denied:
+            Text("Focus alerts are off. You can turn them on in iOS Settings. The timer still runs.")
+                .font(QueueTypography.caption())
+                .foregroundStyle(QueueColors.secondaryText)
+        }
     }
 
     private var firstTask: some View {
@@ -212,6 +243,19 @@ struct OnboardingFlowView: View {
             .buttonStyle(QueuePrimaryButtonStyle())
             .disabled(step == 5 && firstTaskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
+    }
+
+    private func refreshNotificationAuthorization() async {
+        notificationAuthorization = await services.focusAlertCenter.authorizationStatus()
+    }
+
+    private func allowFocusAlerts() async {
+        let current = await services.focusAlertCenter.authorizationStatus()
+        guard FocusNotificationPermissionPolicy.shouldRequest(status: current, reason: .onboardingOptIn) else {
+            notificationAuthorization = current
+            return
+        }
+        notificationAuthorization = await services.focusAlertCenter.requestAuthorization()
     }
 
     private func advance() async {
