@@ -3,8 +3,6 @@ import SwiftData
 import QueueCore
 
 /// Saved preferences, the bundle version, and the system notification status.
-///
-/// Does not edit `autoStartNextTask`. That flag belongs to the Start next control.
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
@@ -95,6 +93,13 @@ struct SettingsView: View {
             .accessibilityHint("Shows a projected start on upcoming tasks.")
             .settingsRow(separator: separatorColor)
 
+            Toggle(isOn: autoStartBinding) {
+                Text("Start the next task")
+                    .foregroundStyle(QueueColors.textPrimary)
+            }
+            .accessibilityHint("After a celebration, the following task starts on its own. You can cancel the countdown.")
+            .settingsRow(separator: separatorColor)
+
             Stepper(value: dailyGoalBinding, in: DailyGoalCount.range) {
                 LabeledContent {
                     Text(DailyGoalCount.label(for: dailyGoalBinding.wrappedValue))
@@ -109,7 +114,7 @@ struct SettingsView: View {
         } header: {
             settingsHeader("Tasks")
         } footer: {
-            settingsFooter("Start times replace durations on upcoming tasks. The daily goal is how many tasks count as a full day.")
+            settingsFooter("Start times replace durations on upcoming tasks. The daily goal is how many tasks count as a full day. With Start the next task on, the following block begins after a short countdown you can cancel.")
         }
     }
 
@@ -278,6 +283,15 @@ struct SettingsView: View {
             set: { newValue in
                 legacyShowPlannedStartTimes = newValue
                 update { UserPreferencesSettingsEditor.setShowPlannedStartTimes(newValue, on: $0) }
+            }
+        )
+    }
+
+    private var autoStartBinding: Binding<Bool> {
+        Binding(
+            get: { preferences.first?.autoStartNextTask ?? false },
+            set: { newValue in
+                update { UserPreferencesSettingsEditor.setAutoStartNextTask(newValue, on: $0) }
             }
         )
     }

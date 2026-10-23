@@ -4,8 +4,7 @@ import SwiftData
 import QueueCore
 @testable import Queue
 
-/// Settings writes the existing `UserPreferencesEntity` fields and leaves
-/// `autoStartNextTask` for the Start next control.
+/// Settings writes the existing `UserPreferencesEntity` fields, including auto-start.
 @MainActor
 final class SettingsPreferencePersistenceTests: XCTestCase {
     func testSettingsEditsRoundTripWithoutTouchingAutoStart() throws {
@@ -41,6 +40,25 @@ final class SettingsPreferencePersistenceTests: XCTestCase {
         XCTAssertEqual(stored.motivationProfile, .consistencyBuilder)
         XCTAssertEqual(stored.dailyGoalCount, DailyGoalCount.maximum)
         XCTAssertTrue(stored.showPlannedStartTimes)
+    }
+
+    func testAutoStartToggleWritesTheExistingColumn() throws {
+        let container = try AppModelContainer.makeInMemory()
+        let context = ModelContext(container)
+        let prefs = UserPreferencesEntity(autoStartNextTask: false)
+        context.insert(prefs)
+
+        UserPreferencesSettingsEditor.setAutoStartNextTask(true, on: prefs)
+        try context.save()
+        var stored = try XCTUnwrap(context.fetch(FetchDescriptor<UserPreferencesEntity>()).first)
+        XCTAssertTrue(stored.autoStartNextTask)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<UserPreferencesEntity>()).count, 1)
+
+        UserPreferencesSettingsEditor.setAutoStartNextTask(false, on: prefs)
+        try context.save()
+        stored = try XCTUnwrap(context.fetch(FetchDescriptor<UserPreferencesEntity>()).first)
+        XCTAssertFalse(stored.autoStartNextTask)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<UserPreferencesEntity>()).count, 1)
     }
 
     func testVersionRowReadsTheAppBundle() throws {
