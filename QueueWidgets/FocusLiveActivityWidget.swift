@@ -9,24 +9,7 @@ import AppIntents
 import UIKit
 
 /// Lock Screen Live Activity, plus the watchOS 11 Smart Stack size on iOS 18+.
-@available(iOS 18.0, *)
 struct FocusLiveActivityWidget: Widget {
-    var body: some WidgetConfiguration {
-        FocusLiveActivityFamilies.includingWatch(makeFocusLiveActivityConfiguration())
-    }
-}
-
-@available(iOS 18.0, *)
-private enum FocusLiveActivityFamilies {
-    static func includingWatch<Configuration: WidgetConfiguration>(
-        _ configuration: Configuration
-    ) -> some WidgetConfiguration {
-        configuration.supplementalActivityFamilies([.small])
-    }
-}
-
-/// Same activity for iOS 17, which has no supplemental activity families.
-struct FocusLiveActivityFallbackWidget: Widget {
     var body: some WidgetConfiguration {
         makeFocusLiveActivityConfiguration()
     }
@@ -37,7 +20,7 @@ private func makeFocusLiveActivityConfiguration() -> some WidgetConfiguration {
         FocusLiveActivityLockScreen(context: context)
     } dynamicIsland: { context in
         let timeUp = focusIsTimeUp(context)
-        DynamicIsland {
+        return DynamicIsland {
             DynamicIslandExpandedRegion(.leading) {
                 LiveActivityCompanionRing(state: context.state, isComplete: timeUp, diameter: 44)
             }
@@ -72,6 +55,19 @@ private func makeFocusLiveActivityConfiguration() -> some WidgetConfiguration {
             )
         } minimal: {
             LiveActivityCompanionRing(state: context.state, isComplete: timeUp, diameter: 22)
+        }
+    }
+    .supplementalActivityFamiliesIfAvailable()
+}
+
+private extension ActivityConfiguration {
+    /// `.small` is the watch Smart Stack and CarPlay size. The modifier exists on iOS 18+;
+    /// both branches return this configuration so the widget still deploys to iOS 17.
+    func supplementalActivityFamiliesIfAvailable() -> some WidgetConfiguration {
+        if #available(iOS 18.0, *) {
+            return self.supplementalActivityFamilies([.small])
+        } else {
+            return self
         }
     }
 }
