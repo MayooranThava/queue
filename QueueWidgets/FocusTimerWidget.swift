@@ -275,6 +275,23 @@ struct WidgetPalette {
     var track: Color {
         fullColor ? QueueColors.dark(.textPrimary).opacity(0.18) : Color.primary.opacity(0.2)
     }
+
+    /// In-progress rings are terracotta. Honey is the completed ring in dark mode only.
+    /// Light mode, and tinted or vibrant Lock Screen styles, stay on primary.
+    func ringColor(completed: Bool, colorScheme: ColorScheme) -> Color {
+        guard fullColor else { return .primary }
+        let honey = FocusActivityChrome.ringUsesHoney(isComplete: completed, isDark: colorScheme == .dark)
+        let role: QueueColorRole = honey ? .accent : .primary
+        if colorScheme == .dark {
+            return QueueColors.dark(role)
+        }
+        return QueueColors.concrete(
+            role,
+            theme: QueueThemeStore.current(),
+            scheme: .light,
+            increasedContrast: false
+        )
+    }
 }
 
 /// Pins the dark column while a widget is full color. Tinted, clear, and vibrant keep the system scheme.
@@ -332,9 +349,13 @@ struct WidgetCompanionBadge: View {
     var diameter: CGFloat = 52
 
     @Environment(\.widgetRenderingMode) private var renderingMode
+    @Environment(\.colorScheme) private var colorScheme
 
     private var palette: WidgetPalette { WidgetPalette(mode: renderingMode) }
     private var pose: WidgetCompanionPose { WidgetCompanionPose.pose(for: state) }
+    private var ringColor: Color {
+        palette.ringColor(completed: state == .expired, colorScheme: colorScheme)
+    }
 
     var body: some View {
         ZStack {
@@ -343,7 +364,7 @@ struct WidgetCompanionBadge: View {
             Circle()
                 .trim(from: 0, to: CGFloat(min(1, max(0, progress))))
                 .stroke(
-                    palette.accent,
+                    ringColor,
                     style: StrokeStyle(lineWidth: max(CGFloat(2), diameter * 0.06), lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))

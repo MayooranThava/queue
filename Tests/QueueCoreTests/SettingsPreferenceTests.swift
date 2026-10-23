@@ -29,6 +29,19 @@ struct SettingsPreferenceTests {
         #expect(Set(names).count == names.count)
     }
 
+    @Test("Companion visibility defaults on until the app publishes a choice")
+    func companionVisibilityStore() {
+        let suite = "queue.companion.preference.tests"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        #expect(CompanionPreferenceStore.isVisible(defaults: defaults))
+        CompanionPreferenceStore.setVisible(false, defaults: defaults)
+        #expect(CompanionPreferenceStore.isVisible(defaults: defaults) == false)
+        CompanionPreferenceStore.setVisible(true, defaults: defaults)
+        #expect(CompanionPreferenceStore.isVisible(defaults: defaults))
+    }
+
     @Test("Daily goal count clamps into the stepper range")
     func dailyGoalClamp() {
         #expect(DailyGoalCount.clamped(3) == 3)

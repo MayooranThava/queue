@@ -7,6 +7,7 @@ struct QueueHomeView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.queueTheme) private var queueTheme
+    @Environment(\.queueAnimationIntensity) private var animationIntensity
     @EnvironmentObject private var services: AppServices
     @Query(sort: [
         SortDescriptor(\TaskEntity.queuePosition),
@@ -24,6 +25,8 @@ struct QueueHomeView: View {
     @State private var errorMessage: String?
     @State private var pendingQueueAction: PendingQueueAction?
     @State private var queueActionInFlight = false
+    @State private var focusActionInFlight = false
+    @State private var focusAlertsDenied = false
 
     private var activeTasks: [QueueTask] {
         taskEntities
@@ -286,28 +289,62 @@ struct QueueHomeView: View {
 
     private var stackQueue: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
+            VStack(spacing: 0) {
                 queueSummaryHeader
                     .padding(.horizontal, QueueSpacing.md)
                     .padding(.vertical, QueueSpacing.sm)
-                ForEach(Array(activeTasks.enumerated()), id: \.element.id) { index, task in
-                    taskBlock(index: index, task: task)
-                        .scrollTransition(
-                            topLeading: reduceMotion ? .identity : .animated(QueueMotion.stackScroll),
-                            bottomTrailing: reduceMotion ? .identity : .animated(QueueMotion.stackScroll)
-                        ) { content, phase in
-                            content
-                                .opacity(stackOpacity(for: phase))
-                                .scaleEffect(x: 1, y: stackScale(for: phase), anchor: .top)
-                                .offset(y: stackOffset(for: phase))
-                        }
-                }
+                QueueStackDeckView(
+                    tasks: activeTasks,
+                    focusSnapshot: headTask.flatMap { matchingSnapshot(for: $0) },
+                    focusAlertsDenied: focusAlertsDenied,
+                    onEdit: { editingTask = $0 },
+                    onOpenFocus: { focusTask = $0 },
+                    onStartFocus: { task in
+                        Task { await startFocusOnStack(task) }
+                    },
+                    onPause: { task in
+                        Task { await pauseFocusOnStack(task) }
+                    },
+                    onResume: { task in
+                        Task { await resumeFocusOnStack(task) }
+                    },
+                    onExtend: { task in
+                        Task { await extendFocusOnStack(task) }
+                    },
+                    onComplete: { task in
+                        Task { await completeFocusOnStack(task) }
+                    },
+                    onExpire: {
+                        Task { await evaluateStackExpiry() }
+                    },
+                    menu: { index, task in stackMenu(index: index, task: task) }
+                )
+                .padding(.horizontal, QueueSpacing.md)
+                .padding(.bottom, QueueSpacing.xl)
             }
-            .scrollTargetLayout()
         }
         .scrollIndicators(.hidden)
-        .scrollTargetBehavior(.viewAligned)
         .background(QueueColors.background)
+        .onChange(of: focusIsRunningOnStack) { _, running in
+            guard running else { return }
+            Task { await refreshFocusAlertPermission() }
+        }
+    }
+
+    private var focusIsRunningOnStack: Bool {
+        guard let headTask, let snapshot = matchingSnapshot(for: headTask) else { return false }
+        return snapshot.session.state == .running
+    }
+
+    private func stackMenu(index: Int, task: QueueTask) -> QueueBlockMenu {
+        QueueBlockMenu(
+            onEdit: { editingTask = task },
+            onMoveUp: index > 1 ? { moveTask(id: task.id, direction: -1) } : nil,
+            onMoveDown: (index > 0 && index < activeTasks.count - 1) ? { moveTask(id: task.id, direction: 1) } : nil,
+            onMoveToBottom: canMoveToBottom(index: index) ? { requestMoveToBottom(task) } : nil,
+            onSkip: { requestSkip(task) },
+            onDelete: { requestDelete(task) }
+        )
     }
 
     private func taskBlock(index: Int, task: QueueTask) -> some View {
@@ -354,22 +391,6 @@ struct QueueHomeView: View {
         .modifier(MoveToBottomAccessibilityAction(enabled: canMoveToBottom(index: index)) {
             requestMoveToBottom(task)
         })
-    }
-
-    private func stackOpacity(for phase: ScrollTransitionPhase) -> Double {
-        if reduceMotion || phase.isIdentity { return 1 }
-        return 0.58 + (0.42 * (1 - abs(phase.value)))
-    }
-
-    private func stackScale(for phase: ScrollTransitionPhase) -> CGFloat {
-        if reduceMotion || phase.isIdentity { return 1 }
-        // Compress toward the top edge so blocks read as a physical stack while scrolling.
-        return 0.88 + (0.12 * (1 - abs(phase.value)))
-    }
-
-    private func stackOffset(for phase: ScrollTransitionPhase) -> CGFloat {
-        if reduceMotion || phase.isIdentity { return 0 }
-        return phase.value * -22
     }
 
     private func matchingSnapshot(for task: QueueTask) -> FocusWidgetSnapshot? {
@@ -502,6 +523,98 @@ struct QueueHomeView: View {
         }
     }
 
+    private func startFocusOnStack(_ task: QueueTask) async {
+        await performFocusAction {
+            let session = try await $0.beginFocus(
+                taskID: task.id,
+                plannedDuration: task.estimatedDuration
+            )
+            await services.refreshFocusSnapshot()
+            await refreshFocusAlertPermission()
+            announceFocusStarted(session)
+            if session.state == .running {
+                QueueHaptics.softTap(reduceMotion: calmMotion)
+            }
+        }
+    }
+
+    private func pauseFocusOnStack(_ task: QueueTask) async {
+        await performFocusAction {
+            _ = try await $0.pauseFocus(taskID: task.id)
+            await services.refreshFocusSnapshot()
+            QueueHaptics.softTap(reduceMotion: calmMotion)
+        }
+    }
+
+    private func resumeFocusOnStack(_ task: QueueTask) async {
+        await performFocusAction {
+            _ = try await $0.resumeFocus(taskID: task.id)
+            await services.refreshFocusSnapshot()
+            await refreshFocusAlertPermission()
+            QueueHaptics.softTap(reduceMotion: calmMotion)
+        }
+    }
+
+    private func extendFocusOnStack(_ task: QueueTask) async {
+        await performFocusAction {
+            _ = try await $0.extendFocus(by: 5 * 60)
+            await services.refreshFocusSnapshot()
+            await refreshFocusAlertPermission()
+            QueueHaptics.softTap(reduceMotion: calmMotion)
+        }
+    }
+
+    private func completeFocusOnStack(_ task: QueueTask) async {
+        await performFocusAction { repository in
+            let outcome = try await repository.completeFocus(taskID: task.id)
+            await services.refreshXP()
+            await services.refreshFocusSnapshot()
+            services.offerUndo(forTaskTitle: outcome.task.title)
+            AccessibilityNotification.Announcement("Completed \(outcome.task.title)").post()
+        }
+    }
+
+    private func evaluateStackExpiry() async {
+        guard !focusActionInFlight else { return }
+        do {
+            _ = try await services.taskRepository?.evaluateFocusExpiry()
+            await services.refreshFocusSnapshot()
+        } catch {
+            // The clock stays clamped at zero until the session marks itself expired.
+        }
+    }
+
+    private var calmMotion: Bool {
+        reduceMotion || !animationIntensity.allowsMotion
+    }
+
+    private func performFocusAction(
+        _ operation: (TaskRepository) async throws -> Void
+    ) async {
+        guard !focusActionInFlight else { return }
+        focusActionInFlight = true
+        defer { focusActionInFlight = false }
+        guard let repository = services.taskRepository else {
+            errorMessage = "Queue isn't ready yet."
+            return
+        }
+        do {
+            try await operation(repository)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func announceFocusStarted(_ session: FocusSession) {
+        let spoken = FocusTimerFormatting.spoken(session.remaining(at: Date()))
+        let lead = session.state == .running ? "Focus started" : "Focus updated"
+        AccessibilityNotification.Announcement("\(lead). Time remaining \(spoken)").post()
+    }
+
+    private func refreshFocusAlertPermission() async {
+        focusAlertsDenied = await services.focusAlertCenter.authorizationStatus() == .denied
+    }
+
     private func undoCompletion() async {
         do {
             _ = try await services.taskRepository?.undoLastCompletion()
@@ -516,7 +629,7 @@ struct QueueHomeView: View {
 
 // MARK: - Stack blocks
 
-private struct QueueBlockMenu {
+struct QueueBlockMenu {
     var onEdit: () -> Void
     var onMoveUp: (() -> Void)?
     var onMoveDown: (() -> Void)?
@@ -525,7 +638,7 @@ private struct QueueBlockMenu {
     var onDelete: () -> Void
 }
 
-private struct QueueBlockInteractions: ViewModifier {
+struct QueueBlockInteractions: ViewModifier {
     let menu: QueueBlockMenu
 
     func body(content: Content) -> some View {
@@ -840,7 +953,7 @@ private struct PendingQueueAction: Identifiable {
     }
 }
 
-private struct MoveToBottomAccessibilityAction: ViewModifier {
+struct MoveToBottomAccessibilityAction: ViewModifier {
     let enabled: Bool
     let action: () -> Void
 

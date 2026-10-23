@@ -97,6 +97,22 @@ struct QueueWidgetSnapshotTests {
         #expect(snapshot.upNext.map(\.title) == ["Block 1", "Block 2", "Block 3", "Block 4", "Block 5"])
     }
 
+    @Test("The Live Activity next line is the following block, not the one in focus")
+    func nextQueuedTitleSkipsTheHead() {
+        let head = task(title: "Test", position: 0)
+        let next = task(title: "  Reply to Alex  ", position: 1)
+        let blank = task(title: "   ", position: 2)
+        let snapshot = QueueWidgetSnapshotBuilder.make(tasks: [head, next, blank], at: now, calendar: calendar)
+        #expect(snapshot.now?.title == "Test")
+        #expect(snapshot.nextQueuedTitle == "Reply to Alex")
+        #expect(FocusActivityChrome.nextLine(snapshot.nextQueuedTitle) == "Next: Reply to Alex")
+
+        let onlyHead = QueueWidgetSnapshotBuilder.make(tasks: [head], at: now, calendar: calendar)
+        #expect(onlyHead.nextQueuedTitle == nil)
+        #expect(FocusActivityChrome.nextLine(nil) == nil)
+        #expect(FocusActivityChrome.nextLine("  ") == nil)
+    }
+
     @Test("A missing snapshot is not treated as an empty queue")
     func missingSnapshotNeedsLaunch() {
         #expect(QueueWidgetChromeState.make(focus: nil, queue: nil, at: now) == .needsLaunch)
