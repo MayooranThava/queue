@@ -40,7 +40,7 @@ struct SettingsView: View {
                 Text("Show companion")
                     .foregroundStyle(QueueColors.textPrimary)
             }
-            .accessibilityHint("Hides the companion on Queue, Focus, and celebrations.")
+            .accessibilityHint("Hides the companion on Queue, Focus, celebrations, and the focus Live Activity.")
             .settingsRow()
 
             Picker(selection: animationBinding) {
@@ -155,6 +155,8 @@ struct SettingsView: View {
             get: { preferences.first?.companionVisible ?? true },
             set: { newValue in
                 update { UserPreferencesSettingsEditor.setCompanionVisible(newValue, on: $0) }
+                CompanionPreferenceStore.setVisible(newValue)
+                Task { await services.refreshFocusSnapshot() }
             }
         )
     }

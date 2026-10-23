@@ -27,14 +27,19 @@ final class FocusLiveActivityControllerBox {
             session: snapshot.session,
             taskTitle: snapshot.taskTitle,
             difficultyDisplayName: snapshot.difficultyDisplayName,
-            estimatedDuration: snapshot.estimatedDuration
+            estimatedDuration: snapshot.estimatedDuration,
+            showsCompanion: CompanionPreferenceStore.isVisible(),
+            nextTaskTitle: QueueActivityStore.load()?.nextQueuedTitle
         )
         let attributes = FocusActivityAttributes(taskID: snapshot.taskID)
+        // Re-render at the end so Time's up can replace the running countdown without a push.
+        let staleDate = snapshot.session.state == .running ? snapshot.runningEndDate() : nil
+        let content = ActivityContent(state: state, staleDate: staleDate)
 
         if let existing = Activity<FocusActivityAttributes>.activities.first(where: {
             $0.attributes.taskID == snapshot.taskID
         }) {
-            await existing.update(ActivityContent(state: state, staleDate: nil))
+            await existing.update(content)
             return
         }
 
@@ -42,7 +47,6 @@ final class FocusLiveActivityControllerBox {
             await stale.end(nil, dismissalPolicy: .immediate)
         }
 
-        let content = ActivityContent(state: state, staleDate: nil)
         _ = try? Activity.request(attributes: attributes, content: content, pushType: nil)
         #endif
     }

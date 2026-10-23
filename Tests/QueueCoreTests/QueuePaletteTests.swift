@@ -127,6 +127,27 @@ struct QueuePaletteTests {
         #expect(pbx.contains("Shared/CompanionStills.xcassets"))
     }
 
+    @Test func liveActivityCompanionIconsFitTheImageBudget() throws {
+        let root = repoRoot()
+        let names = ["LiveCompanionIdle", "LiveCompanionWorking", "LiveCompanionDone"]
+        for name in names {
+            let url = root
+                .appendingPathComponent("QueueWidgets/Assets.xcassets/\(name).imageset")
+                .appendingPathComponent("\(name).png")
+            let data = try Data(contentsOf: url)
+            #expect(data.count <= 4_096, "\(name) is \(data.count) bytes; Live Activities grey-box anything larger")
+            #expect(data.count > 256, "\(name) should still be the companion, not an empty file")
+            let header = try pngHeader(data)
+            #expect(header.width == header.height)
+            #expect(header.width >= 48 && header.width <= 96, "\(name) is \(header.width)px")
+            #expect(header.colorType == 6, "\(name) needs a transparent background so the ring is not a square")
+        }
+        let project = try String(contentsOf: root.appendingPathComponent("project.yml"), encoding: .utf8)
+        #expect(project.contains("QueueWidgets/Assets.xcassets"))
+        let pbx = try String(contentsOf: root.appendingPathComponent("Queue.xcodeproj/project.pbxproj"), encoding: .utf8)
+        #expect(pbx.contains("QueueWidgets/Assets.xcassets"))
+    }
+
     @Test func appIconsAreOpaque1024Squares() throws {
         let root = repoRoot()
         let names = ["AppIcon.png", "AppIcon-Dark.png", "AppIcon-Tinted.png"]

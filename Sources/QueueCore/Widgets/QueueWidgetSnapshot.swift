@@ -55,6 +55,13 @@ public struct QueueWidgetSnapshot: Codable, Sendable, Equatable {
     }
 
     public var isEmpty: Bool { now == nil }
+
+    /// The block after the one in focus. Blank titles are treated as no next task.
+    public var nextQueuedTitle: String? {
+        guard let raw = upNext.first?.title else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
 }
 
 public enum QueueWidgetSnapshotBuilder {

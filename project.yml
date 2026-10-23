@@ -79,6 +79,7 @@ targets:
     resources:
       - path: Shared/QueueColors.xcassets
       - path: Shared/CompanionStills.xcassets
+      - path: QueueWidgets/Assets.xcassets
     entitlements:
       path: QueueWidgets/QueueWidgets.entitlements
     dependencies:

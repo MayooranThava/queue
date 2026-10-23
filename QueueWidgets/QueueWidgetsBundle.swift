@@ -7,7 +7,11 @@ struct QueueWidgetsBundle: WidgetBundle {
         FocusTimerWidget()
         FocusTimerLockScreenWidget()
         #if canImport(ActivityKit)
-        FocusLiveActivityWidget()
+        if #available(iOS 18.0, *) {
+            FocusLiveActivityWidget()
+        } else {
+            FocusLiveActivityFallbackWidget()
+        }
         #endif
     }
 }
