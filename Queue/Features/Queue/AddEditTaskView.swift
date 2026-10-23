@@ -193,9 +193,7 @@ struct DurationPresetChips: View {
                         .background(
                             RoundedRectangle(cornerRadius: QueueSpacing.cornerMinimal, style: .continuous)
                                 .fill(
-                                    selected
-                                        ? QueueColors.surface
-                                        : QueueColors.surface.opacity(0.35)
+                                    QueueColors.surface.opacity(selected ? 1 : 0.35)
                                 )
                         )
                 }

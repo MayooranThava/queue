@@ -211,9 +211,7 @@ struct OnboardingFlowView: View {
                                     .background(
                                         RoundedRectangle(cornerRadius: QueueSpacing.cornerMinimal, style: .continuous)
                                             .fill(
-                                                firstTaskDifficulty == value
-                                                    ? QueueColors.surface
-                                                    : QueueColors.surface.opacity(0.35)
+                                                QueueColors.surface.opacity(firstTaskDifficulty == value ? 1 : 0.35)
                                             )
                                     )
                             }
