@@ -2,11 +2,11 @@ import Foundation
 
 /// App Group–backed store so the main app, widgets, and Live Activities share one timer snapshot.
 public enum FocusActivityStore {
-    public static let appGroupID = "group.com.queueapp.Queueup"
+    public static let appGroupID = AppGroupDefaults.suiteID
     public static let snapshotKey = "focus.widget.snapshot.v1"
 
     private static var defaults: UserDefaults {
-        UserDefaults(suiteName: appGroupID) ?? .standard
+        AppGroupDefaults.shared
     }
 
     public static func save(_ snapshot: FocusWidgetSnapshot) {

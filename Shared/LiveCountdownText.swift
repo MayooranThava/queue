@@ -13,6 +13,7 @@ struct LiveCountdownText: View {
     var body: some View {
         Group {
             if snapshot.session.state == .running,
+               snapshot.remaining(at: at) > 0,
                let end = snapshot.runningEndDate(at: at) {
                 Text(timerInterval: at...end, countsDown: true)
                     .font(.system(size: fontSize, weight: weight, design: .rounded).monospacedDigit())

@@ -121,7 +121,10 @@ struct QueueHomeView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                Task { await services.refreshFocusSnapshot() }
+                Task {
+                    await services.importWidgetEditsIfNeeded()
+                    await services.refreshFocusSnapshot()
+                }
             }
         }
         .onAppear {
