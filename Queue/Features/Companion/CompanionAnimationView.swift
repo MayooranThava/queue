@@ -98,26 +98,26 @@ private struct CompanionStillImage: View {
 #Preview("Working") {
     CompanionAnimationView(state: .working, reduceMotion: false)
         .frame(width: 240, height: 240)
-        .background(QueueColors.charcoal)
+        .background(QueueColors.dark(.background))
 }
 #Preview("Deep Focus") {
     CompanionAnimationView(state: .deepFocus, reduceMotion: false)
         .frame(width: 240, height: 240)
-        .background(QueueColors.charcoal)
+        .background(QueueColors.dark(.background))
 }
 #Preview("Completed") {
     CompanionAnimationView(state: .celebrating, reduceMotion: false)
         .frame(width: 240, height: 240)
-        .background(QueueColors.charcoal)
+        .background(QueueColors.dark(.background))
 }
 #Preview("Timer Expired") {
     CompanionAnimationView(state: .timerExpired, reduceMotion: false)
         .frame(width: 240, height: 240)
-        .background(QueueColors.charcoal)
+        .background(QueueColors.dark(.background))
 }
 #Preview("Idle / Reduce Motion") {
     CompanionAnimationView(state: .idle, reduceMotion: true)
         .frame(width: 240, height: 240)
-        .background(QueueColors.charcoal)
+        .background(QueueColors.dark(.background))
 }
 #endif

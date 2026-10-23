@@ -51,7 +51,7 @@ struct AddEditTaskView: View {
                     Text("Task")
                 } footer: {
                     Text("Keep it small enough to start now.")
-                        .foregroundStyle(QueueColors.secondaryText)
+                        .foregroundStyle(QueueColors.textSecondary)
                 }
 
                 Section("Estimate") {
@@ -78,7 +78,7 @@ struct AddEditTaskView: View {
                     Text("Schedule (optional)")
                 } footer: {
                     Text("Shown in Up next when “Show start times” is on. Estimates still drive the focus timer.")
-                        .foregroundStyle(QueueColors.secondaryText)
+                        .foregroundStyle(QueueColors.textSecondary)
                 }
             }
             .scrollContentBackground(.hidden)
@@ -147,11 +147,11 @@ struct DurationEstimatePicker: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(minutes) minutes")
                         .font(QueueTypography.headline(17))
-                        .foregroundStyle(QueueColors.primaryText)
+                        .foregroundStyle(QueueColors.textPrimary)
                     if !DurationEstimate.presets.contains(minutes) {
                         Text("Custom")
                             .font(QueueTypography.caption())
-                            .foregroundStyle(QueueColors.secondaryText)
+                            .foregroundStyle(QueueColors.textSecondary)
                     }
                 }
             }
@@ -160,7 +160,7 @@ struct DurationEstimatePicker: View {
             .background {
                 if showsStepperChrome {
                     RoundedRectangle(cornerRadius: QueueSpacing.cornerMinimal, style: .continuous)
-                        .fill(QueueColors.secondarySurface.opacity(0.55))
+                        .fill(QueueColors.surface.opacity(0.55))
                 }
             }
         }
@@ -179,7 +179,7 @@ struct DurationPresetChips: View {
                 } label: {
                     Text("\(preset) min")
                         .font(QueueTypography.caption())
-                        .foregroundStyle(QueueColors.primaryText)
+                        .foregroundStyle(QueueColors.textPrimary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .frame(maxWidth: .infinity, minHeight: QueueSpacing.minTouch)
@@ -187,8 +187,8 @@ struct DurationPresetChips: View {
                             RoundedRectangle(cornerRadius: QueueSpacing.cornerMinimal, style: .continuous)
                                 .fill(
                                     selected
-                                        ? QueueColors.secondarySurface
-                                        : QueueColors.secondarySurface.opacity(0.35)
+                                        ? QueueColors.surface
+                                        : QueueColors.surface.opacity(0.35)
                                 )
                         )
                 }

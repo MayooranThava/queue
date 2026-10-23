@@ -51,10 +51,10 @@ struct OnboardingFlowView: View {
             Spacer()
             Text("Queue")
                 .font(QueueTypography.display(48))
-                .foregroundStyle(QueueColors.primaryText)
+                .foregroundStyle(QueueColors.textPrimary)
             Text("One task at a time.\nSmall tasks. Real progress.")
                 .font(QueueTypography.headline(20))
-                .foregroundStyle(QueueColors.secondaryText)
+                .foregroundStyle(QueueColors.textSecondary)
                 .multilineTextAlignment(.center)
             CompanionAnimationView(state: .idle, reduceMotion: false)
                 .frame(height: 160)
@@ -84,7 +84,7 @@ struct OnboardingFlowView: View {
                 .font(QueueTypography.title(32))
             Text("You can change this later in Settings.")
                 .font(QueueTypography.body())
-                .foregroundStyle(QueueColors.secondaryText)
+                .foregroundStyle(QueueColors.textSecondary)
             ForEach(MotivationProfile.allCases, id: \.self) { profile in
                 Button {
                     selectedProfile = profile
@@ -93,21 +93,21 @@ struct OnboardingFlowView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(profileTitle(profile))
                                 .font(QueueTypography.headline(17))
-                                .foregroundStyle(QueueColors.primaryText)
+                                .foregroundStyle(QueueColors.textPrimary)
                             Text(profileSubtitle(profile))
                                 .font(QueueTypography.caption())
-                                .foregroundStyle(QueueColors.secondaryText)
+                                .foregroundStyle(QueueColors.textSecondary)
                         }
                         Spacer()
                         if selectedProfile == profile {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(QueueColors.sageDeep)
+                                .foregroundStyle(QueueColors.success)
                         }
                     }
                     .padding(QueueSpacing.md)
                     .background(
                         RoundedRectangle(cornerRadius: QueueSpacing.cornerMinimal, style: .continuous)
-                            .fill(QueueColors.secondarySurface.opacity(selectedProfile == profile ? 0.9 : 0.45))
+                            .fill(QueueColors.surface.opacity(selectedProfile == profile ? 0.9 : 0.45))
                     )
                 }
                 .buttonStyle(.plain)
@@ -125,7 +125,7 @@ struct OnboardingFlowView: View {
                 .font(QueueTypography.title(32))
             Text("Connect Apple Calendar or Outlook when you want Smart Gaps. Queue works fully offline without it.")
                 .font(QueueTypography.body())
-                .foregroundStyle(QueueColors.secondaryText)
+                .foregroundStyle(QueueColors.textSecondary)
             Spacer()
         }
         .padding(QueueSpacing.xl)
@@ -136,10 +136,10 @@ struct OnboardingFlowView: View {
             Spacer()
             Text("Gentle reminders")
                 .font(QueueTypography.title(32))
-                .foregroundStyle(QueueColors.primaryText)
+                .foregroundStyle(QueueColors.textPrimary)
             Text("When a focus block ends, Queue can send an alert that names the task — even if your phone is locked. No guilt streaks.")
                 .font(QueueTypography.body())
-                .foregroundStyle(QueueColors.secondaryText)
+                .foregroundStyle(QueueColors.textSecondary)
             notificationStatusCopy
             if notificationAuthorization == .notDetermined {
                 Button("Allow focus alerts") {
@@ -158,15 +158,15 @@ struct OnboardingFlowView: View {
         case .notDetermined:
             Text("You can allow alerts now, or Queue will ask the first time a focus timer starts.")
                 .font(QueueTypography.caption())
-                .foregroundStyle(QueueColors.secondaryText)
+                .foregroundStyle(QueueColors.textSecondary)
         case .authorized:
             Text("Focus alerts are on. Queue will ping you when the block ends.")
                 .font(QueueTypography.caption())
-                .foregroundStyle(QueueColors.secondaryText)
+                .foregroundStyle(QueueColors.textSecondary)
         case .denied:
             Text("Focus alerts are off. You can turn them on in iOS Settings. The timer still runs.")
                 .font(QueueTypography.caption())
-                .foregroundStyle(QueueColors.secondaryText)
+                .foregroundStyle(QueueColors.textSecondary)
         }
     }
 
@@ -176,7 +176,7 @@ struct OnboardingFlowView: View {
                 Spacer(minLength: QueueSpacing.xl)
                 Text("Your first task")
                     .font(QueueTypography.title(32))
-                    .foregroundStyle(QueueColors.primaryText)
+                    .foregroundStyle(QueueColors.textPrimary)
 
                 TextField("e.g. Outline the intro paragraph", text: $firstTaskTitle)
                     .textFieldStyle(QueueTextFieldStyle())
@@ -185,14 +185,14 @@ struct OnboardingFlowView: View {
                 VStack(alignment: .leading, spacing: QueueSpacing.sm) {
                     Text("Time")
                         .font(QueueTypography.caption())
-                        .foregroundStyle(QueueColors.secondaryText)
+                        .foregroundStyle(QueueColors.textSecondary)
                     DurationEstimatePicker(minutes: $firstTaskMinutes, showsStepperChrome: true)
                 }
 
                 VStack(alignment: .leading, spacing: QueueSpacing.sm) {
                     Text("Difficulty")
                         .font(QueueTypography.caption())
-                        .foregroundStyle(QueueColors.secondaryText)
+                        .foregroundStyle(QueueColors.textSecondary)
                     HStack(spacing: QueueSpacing.xs) {
                         ForEach(TaskDifficulty.allCases, id: \.self) { value in
                             Button {
@@ -200,14 +200,14 @@ struct OnboardingFlowView: View {
                             } label: {
                                 Text(value.displayName)
                                     .font(QueueTypography.caption())
-                                    .foregroundStyle(QueueColors.primaryText)
+                                    .foregroundStyle(QueueColors.textPrimary)
                                     .frame(maxWidth: .infinity, minHeight: QueueSpacing.minTouch)
                                     .background(
                                         RoundedRectangle(cornerRadius: QueueSpacing.cornerMinimal, style: .continuous)
                                             .fill(
                                                 firstTaskDifficulty == value
-                                                    ? QueueColors.secondarySurface
-                                                    : QueueColors.secondarySurface.opacity(0.35)
+                                                    ? QueueColors.surface
+                                                    : QueueColors.surface.opacity(0.35)
                                             )
                                     )
                             }
@@ -221,7 +221,7 @@ struct OnboardingFlowView: View {
 
                 Text("Start tiny. Momentum beats perfection.")
                     .font(QueueTypography.caption())
-                    .foregroundStyle(QueueColors.secondaryText)
+                    .foregroundStyle(QueueColors.textSecondary)
 
                 Spacer(minLength: QueueSpacing.xl)
             }
@@ -297,12 +297,12 @@ struct OnboardingFlowView: View {
     private func bullet(_ text: String) -> some View {
         HStack(alignment: .top, spacing: QueueSpacing.sm) {
             Circle()
-                .fill(QueueColors.reward)
+                .fill(QueueColors.accent)
                 .frame(width: 8, height: 8)
                 .padding(.top, 6)
             Text(text)
                 .font(QueueTypography.body())
-                .foregroundStyle(QueueColors.primaryText)
+                .foregroundStyle(QueueColors.textPrimary)
         }
     }
 

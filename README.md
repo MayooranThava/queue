@@ -75,7 +75,7 @@ Pull requests and pushes to `main` run the **Queue CI** check on a macOS 26 runn
 
 ## Design
 
-Visual language: warm ivory, sage secondary surfaces, charcoal Focus mode, restrained yellow-green rewards. Inspired by Weekstack’s calm minimalism with Queue’s own identity. Figma: [Queue design file](https://www.figma.com/design/dl0Mw2ko5CmMqfFq8Czynu).
+Visual language: ivory and deep-forest backgrounds, sage-tinted surfaces, terracotta actions, and honey for XP, level-ups, and celebrations. Focus and widgets use the dark palette. Inspired by Weekstack’s calm minimalism with Queue’s own identity. Figma: [Queue design file](https://www.figma.com/design/dl0Mw2ko5CmMqfFq8Czynu).
 
 ## Privacy
 

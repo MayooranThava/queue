@@ -8,6 +8,10 @@ import SwiftData
 /// the Swift type (for example `TaskEntity` to `QueueSchemaV1.TaskEntity`) and
 /// can change the entity name SwiftData writes into the store.
 ///
+/// The app, the widget, and the widget App Intents all open this schema through
+/// `AppModelContainer` (the shared App Group file after the one-time sandbox copy).
+/// Do not build a second container or an in-memory store for those callers.
+///
 /// `Schema.Version(1, 0, 0)` is also the default version of an unversioned
 /// `Schema([…])`, which is what shipping builds saved.
 enum QueueSchemaV1: VersionedSchema {

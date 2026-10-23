@@ -53,7 +53,7 @@ SwiftData models live in the app target, so these run with `QueueTests` rather t
 - V1 lists the shipping `@Model` types at `Schema.Version(1, 0, 0)` and the migration plan has no stages yet
 - A store written with that plan reopens with the same tasks, preferences, focus session, and XP
 - A store written the TestFlight way (unversioned schema, `QueueLocalStore`, no migration plan) reopens through `QueueMigrationPlan` with the same rows
-- `AppModelContainer.open` uses the on-disk store. A failed open throws, leaves the file bytes in place, and does not substitute an in-memory store. In-memory containers are only created by `makeInMemory()`
+- `AppModelContainer.open` uses the on-disk store (the App Group file after the one-time sandbox copy, otherwise the sandbox file). A failed open throws, leaves the file bytes in place, and does not substitute an in-memory store. Widget and App Intent opens use the same plan. In-memory containers are only created by `makeInMemory()`
 
 ## UI coverage (Phase 6 focus)
 

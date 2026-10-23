@@ -2,8 +2,6 @@ import SwiftUI
 
 struct QueuePrimaryButtonStyle: ButtonStyle {
     var isDestructive: Bool = false
-    /// Use on charcoal Focus surfaces where ink-on-charcoal is too low-contrast.
-    var onDarkSurface: Bool = false
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -19,13 +17,11 @@ struct QueuePrimaryButtonStyle: ButtonStyle {
     }
 
     private var labelColor: Color {
-        if isDestructive { return .white }
-        return onDarkSurface ? QueueColors.charcoal : QueueColors.ivory
+        QueueColors.onPrimary
     }
 
     private var fillColor: Color {
-        if isDestructive { return QueueColors.dangerSoft }
-        return onDarkSurface ? QueueColors.ivory : QueueColors.ink
+        isDestructive ? QueueColors.danger : QueueColors.primary
     }
 }
 
@@ -33,11 +29,11 @@ struct QueueSecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(QueueTypography.headline(17))
-            .foregroundStyle(QueueColors.primaryText)
+            .foregroundStyle(QueueColors.textPrimary)
             .frame(maxWidth: .infinity, minHeight: QueueSpacing.minTouch)
             .background(
                 RoundedRectangle(cornerRadius: QueueSpacing.cornerMinimal, style: .continuous)
-                    .fill(QueueColors.secondarySurface)
+                    .fill(QueueColors.surface)
             )
             .opacity(configuration.isPressed ? 0.88 : 1)
     }
@@ -49,7 +45,7 @@ struct QueueTextFieldStyle: TextFieldStyle {
             .padding(QueueSpacing.md)
             .background(
                 RoundedRectangle(cornerRadius: QueueSpacing.cornerMinimal, style: .continuous)
-                    .fill(QueueColors.secondarySurface.opacity(0.55))
+                    .fill(QueueColors.surface.opacity(0.55))
             )
     }
 }

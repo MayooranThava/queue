@@ -7,12 +7,13 @@ struct FocusCountdownRing: View {
     let isPaused: Bool
     let reduceMotion: Bool
 
+    @Environment(\.colorScheme) private var colorScheme
     @State private var pulse = false
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(QueueColors.ivory.opacity(0.12), lineWidth: 6)
+                .stroke(QueueColors.textPrimary.opacity(0.18), lineWidth: 6)
 
             Circle()
                 .trim(from: 0, to: CGFloat(min(1, max(0, progress))))
@@ -28,7 +29,7 @@ struct FocusCountdownRing: View {
 
             if isExpired && !reduceMotion {
                 Circle()
-                    .stroke(QueueColors.reward.opacity(0.35), lineWidth: 6)
+                    .stroke(progressColor.opacity(0.35), lineWidth: 6)
                     .scaleEffect(pulse ? 1.04 : 1.0)
                     .opacity(pulse ? 0.35 : 0.7)
                     .onAppear {
@@ -41,13 +42,15 @@ struct FocusCountdownRing: View {
         .accessibilityHidden(true)
     }
 
+    /// Honey reads on the dark column. Light surfaces use terracotta so the stroke stays visible.
+    private var progressColor: Color {
+        colorScheme == .dark ? QueueColors.accent : QueueColors.primary
+    }
+
     private var ringColors: [Color] {
-        if isExpired {
-            return [QueueColors.reward.opacity(0.85), QueueColors.reward]
-        }
         if isPaused {
-            return [QueueColors.ivory.opacity(0.35), QueueColors.ivory.opacity(0.55)]
+            return [QueueColors.textSecondary, QueueColors.textSecondary]
         }
-        return [QueueColors.sage.opacity(0.75), QueueColors.reward.opacity(0.9)]
+        return [progressColor.opacity(0.85), progressColor]
     }
 }

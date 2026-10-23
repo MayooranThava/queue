@@ -13,6 +13,10 @@
 		6BEC4CBBF7C64C8FB3222DD4 /* FocusCountdownRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = E074E903B5E84FEF8EFC1556 /* FocusCountdownRing.swift */; };
 		133D170FAD3E45F4882F75BD /* QueueButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8BFBE7255A342F5B5E9F74F /* QueueButtons.swift */; };
 		D3FEED9142024FA7B54EB4EF /* QueueColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9BBA8AE76264961BD4C0ABE /* QueueColors.swift */; };
+		E4C0A11B22C34D5E6F708192 /* QueueColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9BBA8AE76264961BD4C0ABE /* QueueColors.swift */; };
+		F5D1B22C33D44E6F708192A4 /* QueueColors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F5D1B22C33D44E6F708192A3 /* QueueColors.xcassets */; };
+		F5D1B22C33D44E6F708192A5 /* QueueColors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F5D1B22C33D44E6F708192A3 /* QueueColors.xcassets */; };
+		A6E2C33D44E54F708192A3B5 /* QueueColorResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E2C33D44E54F708192A3B4 /* QueueColorResolutionTests.swift */; };
 		4C8794BEB26F4EBFA832A664 /* QueueMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DA669D212024628A9D278DD /* QueueMotion.swift */; };
 		FB794DDEF22043D6B595E278 /* QueueSpacing.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDB9E548781D4868895BF34D /* QueueSpacing.swift */; };
 		DD1D38B9B3FF43D1B62D90FA /* QueueTypography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D1FF4DB76F48F9A4562BD5 /* QueueTypography.swift */; };
@@ -48,6 +52,20 @@
 		7517A1C917A94CD3A94F3857 /* CompanionAtlasOrderingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CA7F19AD40A4EB2847EC15C /* CompanionAtlasOrderingTests.swift */; };
 		447AC3DEF26E40148A43BD44 /* TaskQueueIntegrationSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01E4B053B05D427EA236B973 /* TaskQueueIntegrationSmokeTests.swift */; };
 		0F6B9C28D3E14A57B2F80C16 /* SchemaMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C2A4E71F9D05B36A1C78D45 /* SchemaMigrationTests.swift */; };
+		A11A00112233445566778813 /* QueueSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E15C90D4B24738F9A06E12 /* QueueSchema.swift */; };
+		A11A00112233445566778802 /* QueueWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A00112233445566778801 /* QueueWidgetViews.swift */; };
+		A11A00112233445566778804 /* WidgetFocusIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A00112233445566778803 /* WidgetFocusIntents.swift */; };
+		A11A00112233445566778806 /* WidgetStoreChangeCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A00112233445566778805 /* WidgetStoreChangeCenter.swift */; };
+		A11A00112233445566778807 /* WidgetStoreChangeCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A00112233445566778805 /* WidgetStoreChangeCenter.swift */; };
+		A11A00112233445566778809 /* QueueWidgetReload.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A00112233445566778808 /* QueueWidgetReload.swift */; };
+		A11A0011223344556677880A /* QueueWidgetReload.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A00112233445566778808 /* QueueWidgetReload.swift */; };
+		A11A0011223344556677880C /* SharedStoreReload.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0011223344556677880B /* SharedStoreReload.swift */; };
+		A11A0011223344556677880D /* SharedStoreReload.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0011223344556677880B /* SharedStoreReload.swift */; };
+		A11A0011223344556677880E /* TaskEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C24098E75D48CE995748FC /* TaskEntity.swift */; };
+		A11A0011223344556677880F /* TaskRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B80BCA833EF48B48A0E66FD /* TaskRepository.swift */; };
+		A11A00112233445566778810 /* AppModelContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F52A911EF234459AB7D1CA30 /* AppModelContainer.swift */; };
+		A11A00112233445566778811 /* FocusLiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4275AAF480864CF4A946378F /* FocusLiveActivityController.swift */; };
+		A11A00112233445566778812 /* SystemFocusEndNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E1D1F22C315E7B0F9D8C32 /* SystemFocusEndNotificationScheduler.swift */; };
 		97836FF17D1348EBA9539FB1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 74B27F8B9DD64C5BBCDC7641 /* Assets.xcassets */; };
 		6766BA7573F24F52ABEB6E73 /* Completed.atlas in Resources */ = {isa = PBXBuildFile; fileRef = D6F29185DA434A4A9F5DD92D /* Completed.atlas */; };
 		061637AE0ABB4B20B36F121D /* DeepFocus.atlas in Resources */ = {isa = PBXBuildFile; fileRef = CFE87CA2D2EB4E0E992A7848 /* DeepFocus.atlas */; };
@@ -62,6 +80,7 @@
 		675B0F0BB10A4EA29F0374C4 /* QueueWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QueueWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		C704F476FFE7423C845B4210 /* QueueTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QueueTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		74B27F8B9DD64C5BBCDC7641 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Queue/Resources/Assets.xcassets; sourceTree = SOURCE_ROOT; };
+		F5D1B22C33D44E6F708192A3 /* QueueColors.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = QueueColors.xcassets; path = Shared/QueueColors.xcassets; sourceTree = SOURCE_ROOT; };
 		D6F29185DA434A4A9F5DD92D /* Completed.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Completed.atlas; path = Queue/Resources/Atlases/Completed.atlas; sourceTree = SOURCE_ROOT; };
 		CFE87CA2D2EB4E0E992A7848 /* DeepFocus.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DeepFocus.atlas; path = Queue/Resources/Atlases/DeepFocus.atlas; sourceTree = SOURCE_ROOT; };
 		52942B57E66F4C9396DC3475 /* Expired.atlas */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Expired.atlas; path = Queue/Resources/Atlases/Expired.atlas; sourceTree = SOURCE_ROOT; };
@@ -78,7 +97,7 @@
 		6D95FB20D82647B592F93DB7 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RootView.swift; path = Queue/App/RootView.swift; sourceTree = SOURCE_ROOT; };
 		E074E903B5E84FEF8EFC1556 /* FocusCountdownRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FocusCountdownRing.swift; path = Queue/Core/Animation/FocusCountdownRing.swift; sourceTree = SOURCE_ROOT; };
 		D8BFBE7255A342F5B5E9F74F /* QueueButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QueueButtons.swift; path = Queue/Core/DesignSystem/QueueButtons.swift; sourceTree = SOURCE_ROOT; };
-		C9BBA8AE76264961BD4C0ABE /* QueueColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QueueColors.swift; path = Queue/Core/DesignSystem/QueueColors.swift; sourceTree = SOURCE_ROOT; };
+		C9BBA8AE76264961BD4C0ABE /* QueueColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QueueColors.swift; path = Shared/QueueColors.swift; sourceTree = SOURCE_ROOT; };
 		4DA669D212024628A9D278DD /* QueueMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QueueMotion.swift; path = Queue/Core/DesignSystem/QueueMotion.swift; sourceTree = SOURCE_ROOT; };
 		EDB9E548781D4868895BF34D /* QueueSpacing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QueueSpacing.swift; path = Queue/Core/DesignSystem/QueueSpacing.swift; sourceTree = SOURCE_ROOT; };
 		20D1FF4DB76F48F9A4562BD5 /* QueueTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QueueTypography.swift; path = Queue/Core/DesignSystem/QueueTypography.swift; sourceTree = SOURCE_ROOT; };
@@ -111,6 +130,12 @@
 		1CA7F19AD40A4EB2847EC15C /* CompanionAtlasOrderingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompanionAtlasOrderingTests.swift; path = QueueTests/CompanionAtlasOrderingTests.swift; sourceTree = SOURCE_ROOT; };
 		01E4B053B05D427EA236B973 /* TaskQueueIntegrationSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskQueueIntegrationSmokeTests.swift; path = QueueTests/TaskQueueIntegrationSmokeTests.swift; sourceTree = SOURCE_ROOT; };
 		8C2A4E71F9D05B36A1C78D45 /* SchemaMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SchemaMigrationTests.swift; path = QueueTests/SchemaMigrationTests.swift; sourceTree = SOURCE_ROOT; };
+		A6E2C33D44E54F708192A3B4 /* QueueColorResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QueueColorResolutionTests.swift; path = QueueTests/QueueColorResolutionTests.swift; sourceTree = SOURCE_ROOT; };
+		A11A00112233445566778801 /* QueueWidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QueueWidgetViews.swift; path = QueueWidgets/QueueWidgetViews.swift; sourceTree = SOURCE_ROOT; };
+		A11A00112233445566778803 /* WidgetFocusIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WidgetFocusIntents.swift; path = QueueWidgets/WidgetFocusIntents.swift; sourceTree = SOURCE_ROOT; };
+		A11A00112233445566778805 /* WidgetStoreChangeCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WidgetStoreChangeCenter.swift; path = Shared/WidgetStoreChangeCenter.swift; sourceTree = SOURCE_ROOT; };
+		A11A00112233445566778808 /* QueueWidgetReload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QueueWidgetReload.swift; path = Shared/QueueWidgetReload.swift; sourceTree = SOURCE_ROOT; };
+		A11A0011223344556677880B /* SharedStoreReload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SharedStoreReload.swift; path = Queue/Core/Persistence/SharedStoreReload.swift; sourceTree = SOURCE_ROOT; };
 		DE7F3915F138414BA8E03E53 = {
 			isa = PBXGroup;
 			children = (87DB94984877489599ADAF31, C51465B486414A078E83D59F, 806117B972AD4E5294B566A6, 3BE704E06049425AAA1EC775, E3482416626E44FFBD7827DE, E2F639DB775D41059E49EB74);
@@ -130,25 +155,25 @@
 		};
 		87DB94984877489599ADAF31 /* Queue */ = {
 			isa = PBXGroup;
-			children = (A964E9450A7F4F09BCD2B2B2, F52A911EF234459AB7D1CA30, 5D93B01BA5F2431688270915, 567C77EC730A4BF2B731B4CA, 7C4E9A21B8D64F05A3E17C90, 6D95FB20D82647B592F93DB7, E074E903B5E84FEF8EFC1556, D8BFBE7255A342F5B5E9F74F, C9BBA8AE76264961BD4C0ABE, 4DA669D212024628A9D278DD, EDB9E548781D4868895BF34D, 20D1FF4DB76F48F9A4562BD5, CEEFD62F8B4C432AA8D36007, 4275AAF480864CF4A946378F, B2E1D1F22C315E7B0F9D8C32, 60C24098E75D48CE995748FC, A6E15C90D4B24738F9A06E12, 9B80BCA833EF48B48A0E66FD, D9C64F50EF95410895D89447, 0DDE0080871245AABEDAAE42, 252101B23B314FCBA9205CB0, 9F14E9E3414043A5B5209D77, A3C1383BA99F49E69C7F7C89, 2090B7F709FB4E16B56337E1, FF707941DCCC4349B1159892, 1E0A2B8000F245E593F7157B, D3D3B373D210445580E21BEE, C29FD545C3494556AB1D4FA5, BDD753CDE7644CDEA4A380B6, D3C158C681B140BB817E3232, 155188F27860437C8818D30E, 68F5CCF468D142E682668B99, 74B27F8B9DD64C5BBCDC7641, 08FAD654C4B6475E89DBFD3A, 1D4B66B4881F46B1ABC815B9);
+			children = (A964E9450A7F4F09BCD2B2B2, F52A911EF234459AB7D1CA30, 5D93B01BA5F2431688270915, 567C77EC730A4BF2B731B4CA, 7C4E9A21B8D64F05A3E17C90, 6D95FB20D82647B592F93DB7, E074E903B5E84FEF8EFC1556, D8BFBE7255A342F5B5E9F74F, 4DA669D212024628A9D278DD, EDB9E548781D4868895BF34D, 20D1FF4DB76F48F9A4562BD5, CEEFD62F8B4C432AA8D36007, 4275AAF480864CF4A946378F, B2E1D1F22C315E7B0F9D8C32, 60C24098E75D48CE995748FC, A6E15C90D4B24738F9A06E12, 9B80BCA833EF48B48A0E66FD, A11A0011223344556677880B, D9C64F50EF95410895D89447, 0DDE0080871245AABEDAAE42, 252101B23B314FCBA9205CB0, 9F14E9E3414043A5B5209D77, A3C1383BA99F49E69C7F7C89, 2090B7F709FB4E16B56337E1, FF707941DCCC4349B1159892, 1E0A2B8000F245E593F7157B, D3D3B373D210445580E21BEE, C29FD545C3494556AB1D4FA5, BDD753CDE7644CDEA4A380B6, D3C158C681B140BB817E3232, 155188F27860437C8818D30E, 68F5CCF468D142E682668B99, 74B27F8B9DD64C5BBCDC7641, 08FAD654C4B6475E89DBFD3A, 1D4B66B4881F46B1ABC815B9);
 			name = Queue;
 			sourceTree = "<group>";
 		};
 		C51465B486414A078E83D59F /* Shared */ = {
 			isa = PBXGroup;
-			children = (932526B2C016439DACD79FF0, C465F6DF30474F5BAC376588, 4C69BEA8506F48DFBC38EC65);
+			children = (932526B2C016439DACD79FF0, C465F6DF30474F5BAC376588, 4C69BEA8506F48DFBC38EC65, A11A00112233445566778805, A11A00112233445566778808, C9BBA8AE76264961BD4C0ABE, F5D1B22C33D44E6F708192A3);
 			name = Shared;
 			sourceTree = "<group>";
 		};
 		806117B972AD4E5294B566A6 /* QueueWidgets */ = {
 			isa = PBXGroup;
-			children = (70EEFDFE6F7647D7A21A93C8, F96E4660DC08456096C93D25, C04A189F1C7F4349A5502F68, 7B5B8CF88D5743F199923297, 85D88E289E4241D69023C03F);
+			children = (70EEFDFE6F7647D7A21A93C8, F96E4660DC08456096C93D25, A11A00112233445566778801, A11A00112233445566778803, C04A189F1C7F4349A5502F68, 7B5B8CF88D5743F199923297, 85D88E289E4241D69023C03F);
 			name = QueueWidgets;
 			sourceTree = "<group>";
 		};
 		3BE704E06049425AAA1EC775 /* QueueTests */ = {
 			isa = PBXGroup;
-			children = (1CA7F19AD40A4EB2847EC15C, 8C2A4E71F9D05B36A1C78D45, 01E4B053B05D427EA236B973);
+			children = (1CA7F19AD40A4EB2847EC15C, 8C2A4E71F9D05B36A1C78D45, 01E4B053B05D427EA236B973, A6E2C33D44E54F708192A3B4);
 			name = QueueTests;
 			sourceTree = "<group>";
 		};
@@ -161,25 +186,25 @@
 		5FC90902D17B45F79F25413E /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (5683225BD3A24736A334709B, 61797CE5CE9F4BFEBF1AA5EA, BD3B7B455FA442A29CE9BD80, 512149167CA34EA280D95679, 2D8F6B43C1A94E70B5D28F01, 63E74055974D45859D523E74, 6BEC4CBBF7C64C8FB3222DD4, 133D170FAD3E45F4882F75BD, D3FEED9142024FA7B54EB4EF, 4C8794BEB26F4EBFA832A664, FB794DDEF22043D6B595E278, DD1D38B9B3FF43D1B62D90FA, 12302842CC274127A1B8C764, 5C0FCA5736784CA890D400D3, A1F0C0E11B204D6A9E8C7B21, B9B5D04E175C4E4197A22E9D, 5B3D7F82E0C14A69D8B47A23, FC8767B1C9554C3AA8D57251, 12780F4786514E6E9D2B9218, 3575A107F4694A9DA790718C, 0DBABA74442E4AA4AD6A63EA, B03ADC53CA7D4F488E3B92E3, 91AD466235C14674A02ABC6A, E7021F0EF74A4506AE7C185E, 3CE31C8A05D04D50984967BD, A24F851E6B994169B8580D7E, D7110549F6B942B5B23FDC65, E8E9FF22416B46DF9243FD15, 0FBBC78F0AEC467BA0576942, 0CBC4D8CFD66467DADBC356C, 9369A9E5C8E14D1B9E743E17, 6324550705444A0E8B615E1B, BC4966E05A1346438BD94266, 4386160ACBF04D1CA150B751, 3F39A37FEE7D4774B21F18A3);
+			files = (5683225BD3A24736A334709B, 61797CE5CE9F4BFEBF1AA5EA, BD3B7B455FA442A29CE9BD80, 512149167CA34EA280D95679, 2D8F6B43C1A94E70B5D28F01, 63E74055974D45859D523E74, 6BEC4CBBF7C64C8FB3222DD4, 133D170FAD3E45F4882F75BD, D3FEED9142024FA7B54EB4EF, 4C8794BEB26F4EBFA832A664, FB794DDEF22043D6B595E278, DD1D38B9B3FF43D1B62D90FA, 12302842CC274127A1B8C764, 5C0FCA5736784CA890D400D3, A1F0C0E11B204D6A9E8C7B21, B9B5D04E175C4E4197A22E9D, 5B3D7F82E0C14A69D8B47A23, FC8767B1C9554C3AA8D57251, A11A0011223344556677880C, 12780F4786514E6E9D2B9218, 3575A107F4694A9DA790718C, 0DBABA74442E4AA4AD6A63EA, B03ADC53CA7D4F488E3B92E3, 91AD466235C14674A02ABC6A, E7021F0EF74A4506AE7C185E, 3CE31C8A05D04D50984967BD, A24F851E6B994169B8580D7E, D7110549F6B942B5B23FDC65, E8E9FF22416B46DF9243FD15, 0FBBC78F0AEC467BA0576942, 0CBC4D8CFD66467DADBC356C, 9369A9E5C8E14D1B9E743E17, 6324550705444A0E8B615E1B, BC4966E05A1346438BD94266, 4386160ACBF04D1CA150B751, 3F39A37FEE7D4774B21F18A3, A11A00112233445566778806, A11A00112233445566778809);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		6F1CDDA4ACA941C29B11D3EC /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (53AA8A8FBC384ABC829E8D10, 0761D55AB2734AA4A37504B5, 0D88F915F0714C91A1197EE8, 97D9CB77BFAF4A42A3090DB0, FA7A12657E114DD98D4B1D84, F18D87F6686648E29224F51C);
+			files = (53AA8A8FBC384ABC829E8D10, 0761D55AB2734AA4A37504B5, A11A00112233445566778802, A11A00112233445566778804, 0D88F915F0714C91A1197EE8, 97D9CB77BFAF4A42A3090DB0, FA7A12657E114DD98D4B1D84, F18D87F6686648E29224F51C, A11A00112233445566778807, A11A0011223344556677880A, A11A0011223344556677880D, A11A0011223344556677880E, A11A00112233445566778813, A11A0011223344556677880F, A11A00112233445566778810, A11A00112233445566778811, A11A00112233445566778812, E4C0A11B22C34D5E6F708192);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		6B7E85670EB147FE9D5EF5D4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (7517A1C917A94CD3A94F3857, 0F6B9C28D3E14A57B2F80C16, 447AC3DEF26E40148A43BD44);
+			files = (7517A1C917A94CD3A94F3857, 0F6B9C28D3E14A57B2F80C16, 447AC3DEF26E40148A43BD44, A6E2C33D44E54F708192A3B5);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		29B2B6AA64BC4261BD0AC944 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (97836FF17D1348EBA9539FB1, 6766BA7573F24F52ABEB6E73, 061637AE0ABB4B20B36F121D, 495584E146A540EE95508DFE, C6C5FFE97DA54F60BBCE72B0, A9C43A8F4E9A4102B7700F11);
+			files = (97836FF17D1348EBA9539FB1, 6766BA7573F24F52ABEB6E73, 061637AE0ABB4B20B36F121D, 495584E146A540EE95508DFE, C6C5FFE97DA54F60BBCE72B0, A9C43A8F4E9A4102B7700F11, F5D1B22C33D44E6F708192A4);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		1A9797D92AE049FD94466268 /* Frameworks */ = {
@@ -192,6 +217,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (6C419978A5484C7BAF3836CA);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F5D1B22C33D44E6F708192A6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (F5D1B22C33D44E6F708192A5);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		BC99EABB761C45A1A6F40FA8 /* Frameworks */ = {
@@ -224,7 +255,7 @@
 		7B2A6CF5DC804C4583726A79 /* QueueWidgets */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 414418ECBFC24F1895E480E3 /* Build configuration list for PBXNativeTarget "QueueWidgets" */;
-			buildPhases = (6F1CDDA4ACA941C29B11D3EC, E4564141A5BE46B9B8468EA5);
+			buildPhases = (6F1CDDA4ACA941C29B11D3EC, E4564141A5BE46B9B8468EA5, F5D1B22C33D44E6F708192A6);
 			buildRules = ();
 			dependencies = ();
 			name = QueueWidgets;

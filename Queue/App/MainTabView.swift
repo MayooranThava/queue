@@ -43,7 +43,7 @@ struct MainTabView: View {
                 selectedTab = 0
             }
         }
-        .tint(QueueColors.sageDeep)
+        .tint(QueueColors.primary)
         .toolbarBackground(QueueColors.background, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
         .toolbarBackground(QueueColors.background, for: .navigationBar)

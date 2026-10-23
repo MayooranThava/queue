@@ -15,7 +15,7 @@ struct FocusLiveActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     Label("Focus", systemImage: "leaf.fill")
                         .font(.caption)
-                        .foregroundStyle(QueueWidgetColors.sage)
+                        .foregroundStyle(QueueColors.dark(.success))
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     liveClock(context.state, fontSize: 18)
@@ -23,23 +23,24 @@ struct FocusLiveActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.center) {
                     Text(context.state.taskTitle)
                         .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(QueueColors.dark(.textPrimary))
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     Text(statusCaption(context.state))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(QueueColors.dark(.textSecondary))
                 }
             } compactLeading: {
                 Image(systemName: "leaf.fill")
-                    .foregroundStyle(QueueWidgetColors.sage)
+                    .foregroundStyle(QueueColors.dark(.success))
             } compactTrailing: {
                 liveClock(context.state, fontSize: 14)
                     .minimumScaleFactor(0.6)
             } minimal: {
                 Image(systemName: "leaf.fill")
-                    .foregroundStyle(QueueWidgetColors.sage)
+                    .foregroundStyle(QueueColors.dark(.success))
             }
         }
     }
@@ -58,12 +59,12 @@ struct FocusLiveActivityWidget: Widget {
             VStack(alignment: .leading, spacing: 4) {
                 Text(context.state.taskTitle)
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(QueueWidgetColors.ivory)
+                    .foregroundStyle(QueueColors.dark(.textPrimary))
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
                 Text(statusCaption(context.state))
                     .font(.caption)
-                    .foregroundStyle(QueueWidgetColors.ivory.opacity(0.55))
+                    .foregroundStyle(QueueColors.dark(.textSecondary))
                     .lineLimit(1)
                 LiveCountdownText(snapshot: snapshot, at: Date(), fontSize: 30)
             }
@@ -80,8 +81,8 @@ struct FocusLiveActivityWidget: Widget {
             )
         }
         .padding(16)
-        .activityBackgroundTint(QueueWidgetColors.charcoal)
-        .activitySystemActionForegroundColor(QueueWidgetColors.ivory)
+        .activityBackgroundTint(QueueColors.dark(.background))
+        .activitySystemActionForegroundColor(QueueColors.dark(.textPrimary))
         .widgetURL(QueueDeepLink.focus)
     }
 
@@ -91,10 +92,12 @@ struct FocusLiveActivityWidget: Widget {
         if state.session.state == .running, let end = state.session.runningEndDate(at: now) {
             Text(timerInterval: now...end, countsDown: true)
                 .font(.system(size: fontSize, weight: .semibold, design: .rounded).monospacedDigit())
+                .foregroundStyle(QueueColors.dark(.textPrimary))
                 .lineLimit(1)
         } else {
             Text(FocusTimerFormatting.clock(state.remaining(at: now)))
                 .font(.system(size: fontSize, weight: .semibold, design: .rounded).monospacedDigit())
+                .foregroundStyle(QueueColors.dark(.textPrimary))
                 .lineLimit(1)
         }
     }

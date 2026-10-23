@@ -8,11 +8,12 @@ struct LiveCountdownText: View {
     let at: Date
     var fontSize: CGFloat = 32
     var weight: Font.Weight = .medium
-    var color: Color = Color(red: 0.98, green: 0.97, blue: 0.94)
+    var color: Color = QueueColors.dark(.textPrimary)
 
     var body: some View {
         Group {
             if snapshot.session.state == .running,
+               snapshot.remaining(at: at) > 0,
                let end = snapshot.runningEndDate(at: at) {
                 Text(timerInterval: at...end, countsDown: true)
                     .font(.system(size: fontSize, weight: weight, design: .rounded).monospacedDigit())

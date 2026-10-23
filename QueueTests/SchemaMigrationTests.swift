@@ -78,6 +78,9 @@ final class SchemaMigrationTests: XCTestCase {
         XCTAssertTrue(container.configurations.allSatisfy { !$0.isStoredInMemoryOnly })
         XCTAssertEqual(container.configurations.first?.name, AppModelContainer.storeName)
         XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+
+        let widgetContainer = try AppModelContainer.makePersistent(migrateLegacyStore: false, storeURL: url)
+        XCTAssertTrue(widgetContainer.configurations.allSatisfy { !$0.isStoredInMemoryOnly })
     }
 
     func testInMemoryStoreIsExplicit() throws {
@@ -87,19 +90,17 @@ final class SchemaMigrationTests: XCTestCase {
         XCTAssertFalse(container.configurations.contains { $0.name == AppModelContainer.storeName })
     }
 
-    func testProductionConfigurationMatchesTestFlightLocation() {
-        let configuration = AppModelContainer.persistentConfiguration()
-        XCTAssertEqual(configuration.name, "QueueLocalStore")
-        XCTAssertFalse(configuration.isStoredInMemoryOnly)
-        let path = configuration.url.path
-        XCTAssertTrue(
-            path.contains("QueueLocalStore"),
-            "Store URL no longer matches the TestFlight file name: \(path)"
-        )
-        XCTAssertFalse(
-            path.contains("group.com.queueapp.Queueup"),
-            "Store URL moved into the App Group: \(path)"
-        )
+    func testProductionConfigurationStaysOnDisk() {
+        for migrateLegacyStore in [true, false] {
+            let configuration = AppModelContainer.persistentConfiguration(migrateLegacyStore: migrateLegacyStore)
+            XCTAssertEqual(configuration.name, "QueueLocalStore")
+            XCTAssertFalse(configuration.isStoredInMemoryOnly)
+            let path = configuration.url.path
+            XCTAssertTrue(
+                path.contains("QueueLocalStore") || path.contains("default.store"),
+                "Unexpected store URL: \(path)"
+            )
+        }
     }
 
     func testOpenFailureDoesNotSubstituteInMemoryStore() throws {
@@ -112,6 +113,7 @@ final class SchemaMigrationTests: XCTestCase {
         defer { removeStoreDirectory(directory) }
 
         XCTAssertThrowsError(try AppModelContainer.makePersistent(storeURL: url))
+        XCTAssertThrowsError(try AppModelContainer.makePersistent(migrateLegacyStore: false, storeURL: url))
         let result = AppModelContainer.open(storeURL: url)
         guard case .failed = result else {
             XCTFail("Persistent open failure returned a container: \(String(describing: result))")

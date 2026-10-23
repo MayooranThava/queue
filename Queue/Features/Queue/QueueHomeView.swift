@@ -121,7 +121,10 @@ struct QueueHomeView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                Task { await services.refreshFocusSnapshot() }
+                Task {
+                    await services.importWidgetEditsIfNeeded()
+                    await services.refreshFocusSnapshot()
+                }
             }
         }
         .onAppear {
@@ -166,10 +169,10 @@ struct QueueHomeView: View {
                 .accessibilityHidden(true)
             Text("Nothing in your queue")
                 .font(QueueTypography.title(28))
-                .foregroundStyle(QueueColors.primaryText)
+                .foregroundStyle(QueueColors.textPrimary)
             Text("Add one small task. Focus on that alone.")
                 .font(QueueTypography.body())
-                .foregroundStyle(QueueColors.secondaryText)
+                .foregroundStyle(QueueColors.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, QueueSpacing.xl)
             Button("Add your first task") {
@@ -196,7 +199,7 @@ struct QueueHomeView: View {
         HStack {
             Text("\(activeTasks.count) tasks · ~\(remainingWorkMinutes) min")
                 .font(QueueTypography.caption())
-                .foregroundStyle(QueueColors.secondaryText)
+                .foregroundStyle(QueueColors.textSecondary)
             Spacer()
             Picker("Queue view", selection: $queuePresentationMode) {
                 Text("Stack").tag("stack")
@@ -236,7 +239,7 @@ struct QueueHomeView: View {
                         } label: {
                             Label("Skip", systemImage: "forward.end")
                         }
-                        .tint(QueueColors.terracotta)
+                        .tint(QueueColors.fixed(.primary, style: .light))
                     }
                     .swipeActions(edge: .leading, allowsFullSwipe: false) {
                         if canMoveToBottom(index: index) {
@@ -245,7 +248,7 @@ struct QueueHomeView: View {
                             } label: {
                                 Label("Move to bottom", systemImage: "arrow.down.to.line")
                             }
-                            .tint(QueueColors.sageDeep)
+                            .tint(QueueColors.fixed(.success, style: .light))
                         }
                     }
             }
@@ -356,7 +359,7 @@ struct QueueHomeView: View {
         HStack {
             Text("Completed “\(title)”")
                 .font(QueueTypography.body(15))
-                .foregroundStyle(QueueColors.primaryText)
+                .foregroundStyle(QueueColors.textPrimary)
             Spacer()
             Button("Undo") {
                 Task { await undoCompletion() }
@@ -563,14 +566,14 @@ private struct ActiveTaskStackBlock: View {
         VStack(alignment: .leading, spacing: QueueSpacing.md) {
             Text("NOW")
                 .font(QueueTypography.caption())
-                .foregroundStyle(QueueColors.secondaryText)
+                .foregroundStyle(QueueColors.textSecondary)
                 .tracking(1.2)
 
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: QueueSpacing.xs) {
                     Text(task.title)
                         .font(QueueTypography.title(28))
-                        .foregroundStyle(QueueColors.primaryText)
+                        .foregroundStyle(QueueColors.textPrimary)
                         .lineLimit(3)
                         .minimumScaleFactor(0.78)
                         .accessibilityAddTraits(.isHeader)
@@ -578,7 +581,7 @@ private struct ActiveTaskStackBlock: View {
                     if focusSnapshot == nil {
                         Text("\(durationLabel(task.estimatedDuration)) · \(task.difficulty.displayName)")
                             .font(QueueTypography.body())
-                            .foregroundStyle(QueueColors.secondaryText)
+                            .foregroundStyle(QueueColors.textSecondary)
                     }
                 }
                 Spacer(minLength: QueueSpacing.sm)
@@ -592,14 +595,14 @@ private struct ActiveTaskStackBlock: View {
             if focusSnapshot != nil {
                 Label(focusBadgeTitle(for: focusSnapshot), systemImage: "leaf.fill")
                     .font(QueueTypography.caption())
-                    .foregroundStyle(QueueColors.sageDeep)
+                    .foregroundStyle(QueueColors.success)
                     .accessibilityHidden(true)
             }
 
             if let notes = task.notes, !notes.isEmpty {
                 Text(notes)
                     .font(QueueTypography.body(15))
-                    .foregroundStyle(QueueColors.secondaryText)
+                    .foregroundStyle(QueueColors.textSecondary)
             }
 
             Spacer(minLength: 0)
@@ -614,7 +617,7 @@ private struct ActiveTaskStackBlock: View {
 
             Button("Edit task", action: onEdit)
                 .font(QueueTypography.caption())
-                .foregroundStyle(QueueColors.sageDeep)
+                .foregroundStyle(QueueColors.primary)
                 .accessibilityHint("Opens the editor for the active task")
         }
         .padding(.horizontal, QueueSpacing.lg)
@@ -656,13 +659,13 @@ private struct ActiveTaskStackBlock: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(FocusTimerFormatting.clock(remaining))
                     .font(QueueTypography.monoTimer(34))
-                    .foregroundStyle(QueueColors.primaryText)
+                    .foregroundStyle(QueueColors.textPrimary)
                     .contentTransition(.numericText())
                     .accessibilityLabel("Time remaining \(FocusTimerFormatting.spoken(remaining))")
 
                 Text(statusCaption(for: snapshot))
                     .font(QueueTypography.caption())
-                    .foregroundStyle(QueueColors.secondaryText)
+                    .foregroundStyle(QueueColors.textSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -715,19 +718,19 @@ private struct UpcomingTaskStackBlock: View {
             VStack(alignment: .leading, spacing: QueueSpacing.xs) {
                 Text(task.title.uppercased())
                     .font(QueueTypography.title(26))
-                    .foregroundStyle(QueueColors.primaryText)
+                    .foregroundStyle(QueueColors.textPrimary)
                     .lineLimit(3)
                     .minimumScaleFactor(0.8)
                     .multilineTextAlignment(.leading)
 
                 Text(subtitle)
                     .font(QueueTypography.body(15))
-                    .foregroundStyle(QueueColors.secondaryText)
+                    .foregroundStyle(QueueColors.textSecondary)
             }
             Spacer(minLength: QueueSpacing.sm)
             Image(systemName: "line.3.horizontal")
                 .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(QueueColors.secondaryText.opacity(0.7))
+                .foregroundStyle(QueueColors.textSecondary)
                 .padding(.top, 6)
                 .accessibilityHidden(true)
         }
