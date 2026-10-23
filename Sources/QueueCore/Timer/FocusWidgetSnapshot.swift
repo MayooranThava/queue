@@ -49,6 +49,29 @@ public struct FocusWidgetSnapshot: Codable, Sendable, Equatable {
         }
     }
 
+    /// Snapshot a widget or Live Activity can show. Nil for a finished session, or when the
+    /// session belongs to a different task, so a completed block cannot keep the old title on screen.
+    public static func live(
+        task: QueueTask,
+        session: FocusSession,
+        updatedAt: Date = Date()
+    ) -> FocusWidgetSnapshot? {
+        guard session.taskID == task.id else { return nil }
+        switch session.state {
+        case .running, .paused, .expired:
+            return FocusWidgetSnapshot(
+                taskID: task.id,
+                taskTitle: task.title,
+                difficultyDisplayName: task.difficulty.displayName,
+                estimatedDuration: task.estimatedDuration,
+                session: session,
+                updatedAt: updatedAt
+            )
+        case .idle, .completed:
+            return nil
+        }
+    }
+
     /// Gallery and preview session. Uses the 15-minute preset, not a 25-minute block.
     public static func galleryPlaceholder(at now: Date = Date()) -> FocusWidgetSnapshot {
         let taskID = UUID()
