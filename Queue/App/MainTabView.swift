@@ -1,14 +1,18 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @EnvironmentObject private var services: AppServices
+    @State private var selectedTab = 0
+
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             NavigationStack {
                 QueueHomeView()
             }
             .tabItem {
                 Label("Queue", systemImage: "list.bullet")
             }
+            .tag(0)
 
             NavigationStack {
                 CalendarPlaceholderView()
@@ -16,6 +20,7 @@ struct MainTabView: View {
             .tabItem {
                 Label("Calendar", systemImage: "calendar")
             }
+            .tag(1)
 
             NavigationStack {
                 ProgressPlaceholderView()
@@ -23,12 +28,19 @@ struct MainTabView: View {
             .tabItem {
                 Label("Progress", systemImage: "chart.line.uptrend.xyaxis")
             }
+            .tag(2)
 
             NavigationStack {
                 SettingsPlaceholderView()
             }
             .tabItem {
                 Label("Settings", systemImage: "gearshape")
+            }
+            .tag(3)
+        }
+        .onChange(of: services.pendingOpenFocus) { _, shouldOpen in
+            if shouldOpen {
+                selectedTab = 0
             }
         }
         .tint(QueueColors.sageDeep)

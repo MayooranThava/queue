@@ -117,15 +117,22 @@ struct QueueHomeView: View {
         }
         .task {
             await services.configure(modelContext: modelContext)
+            openFocusFromDeepLinkIfNeeded()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task { await services.refreshFocusSnapshot() }
             }
         }
+        .onAppear {
+            openFocusFromDeepLinkIfNeeded()
+        }
         .onChange(of: services.pendingOpenFocus) { _, shouldOpen in
             guard shouldOpen else { return }
-            openFocusFromDeepLink()
+            openFocusFromDeepLinkIfNeeded()
+        }
+        .onChange(of: taskEntities.count) { _, _ in
+            openFocusFromDeepLinkIfNeeded()
         }
         .safeAreaInset(edge: .bottom) {
             if let undoTitle = services.undoBannerTitle {
@@ -134,8 +141,19 @@ struct QueueHomeView: View {
         }
     }
 
-    private func openFocusFromDeepLink() {
-        defer { services.pendingOpenFocus = false }
+    private func openFocusFromDeepLinkIfNeeded() {
+        guard services.pendingOpenFocus else { return }
+        if let requestedTaskID = services.pendingFocusTaskID {
+            // A cold launch from the alert can arrive before SwiftData publishes rows.
+            guard !taskEntities.isEmpty else { return }
+            services.pendingOpenFocus = false
+            services.pendingFocusTaskID = nil
+            if let match = activeTasks.first(where: { $0.id == requestedTaskID }) {
+                focusTask = match
+            }
+            return
+        }
+        services.pendingOpenFocus = false
         guard let headTask else { return }
         focusTask = headTask
     }

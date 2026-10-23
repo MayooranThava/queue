@@ -15,6 +15,7 @@ struct FocusSessionView: View {
     @State private var completionOutcome: FocusCompletionOutcome?
     @State private var didBootstrap = false
     @State private var contentAppeared = false
+    @State private var focusAlertsDenied = false
 
     var body: some View {
         ZStack {
@@ -112,6 +113,14 @@ struct FocusSessionView: View {
 
             Spacer(minLength: QueueSpacing.sm)
 
+            if focusAlertsDenied {
+                Text("Focus alerts are off. You can turn them on in iOS Settings.")
+                    .font(QueueTypography.caption())
+                    .foregroundStyle(QueueColors.ivory.opacity(0.65))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, QueueSpacing.xl)
+            }
+
             controls
                 .padding(.horizontal, QueueSpacing.xl)
                 .padding(.bottom, QueueSpacing.lg)
@@ -183,6 +192,7 @@ struct FocusSessionView: View {
                 plannedDuration: task.estimatedDuration
             )
             session = started
+            await refreshAlertPermission()
             await services.refreshFocusSnapshot()
             // Brief preparing beat, then settle into working.
             try? await Task.sleep(nanoseconds: reduceMotion ? 0 : 280_000_000)
@@ -219,6 +229,7 @@ struct FocusSessionView: View {
     private func resume() async {
         do {
             session = try await services.taskRepository?.resumeFocus(taskID: task.id)
+            await refreshAlertPermission()
             await services.refreshFocusSnapshot()
             withAnimation(QueueMotion.prefer(QueueMotion.standard, reduceMotion: reduceMotion)) {
                 companionState = .working
@@ -232,6 +243,7 @@ struct FocusSessionView: View {
     private func extend() async {
         do {
             session = try await services.taskRepository?.extendFocus(by: 5 * 60)
+            await refreshAlertPermission()
             await services.refreshFocusSnapshot()
             withAnimation(QueueMotion.prefer(QueueMotion.quick, reduceMotion: reduceMotion)) {
                 if session?.state == .running {
@@ -257,6 +269,10 @@ struct FocusSessionView: View {
         } catch {
             // Soft-fail; TimelineView will keep showing clamped remaining time.
         }
+    }
+
+    private func refreshAlertPermission() async {
+        focusAlertsDenied = await services.focusAlertCenter.authorizationStatus() == .denied
     }
 
     private func visualState(for timerState: FocusTimerState?) -> CompanionVisualState {

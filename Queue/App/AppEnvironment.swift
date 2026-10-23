@@ -17,8 +17,11 @@ final class AppServices: ObservableObject {
     @Published private(set) var undoBannerTitle: String?
     /// Live focus snapshot for Queue chrome (timer stays visible outside Focus).
     @Published private(set) var focusSnapshot: FocusWidgetSnapshot?
-    /// Set when a widget / Live Activity asks to jump straight into focus.
+    /// Set when a widget, Live Activity, or focus-end alert asks to jump into focus.
     @Published var pendingOpenFocus = false
+    /// Task named by a focus-end alert. Nil means "open the current focus block."
+    @Published var pendingFocusTaskID: UUID?
+    let focusAlertCenter: SystemFocusEndNotificationScheduler
     private var undoClearTask: Task<Void, Never>?
     private var didBootstrap = false
 
@@ -26,12 +29,25 @@ final class AppServices: ObservableObject {
         queueService: TaskQueueService = TaskQueueService(),
         timerEngine: FocusTimerEngine = FocusTimerEngine(),
         rewardEngine: RewardEngine = RewardEngine(),
-        analytics: AnalyticsClient = InMemoryAnalyticsClient()
+        analytics: AnalyticsClient = InMemoryAnalyticsClient(),
+        focusAlertCenter: SystemFocusEndNotificationScheduler = .shared
     ) {
         self.queueService = queueService
         self.timerEngine = timerEngine
         self.rewardEngine = rewardEngine
         self.analytics = analytics
+        self.focusAlertCenter = focusAlertCenter
+        focusAlertCenter.setOpenTaskHandler { [weak self] taskID in
+            Task { @MainActor in
+                self?.openFocus(taskID: taskID)
+            }
+        }
+        focusAlertCenter.install()
+    }
+
+    func openFocus(taskID: UUID?) {
+        pendingFocusTaskID = taskID
+        pendingOpenFocus = true
     }
 
     func configure(modelContext: ModelContext) async {
@@ -41,7 +57,9 @@ final class AppServices: ObservableObject {
                 queueService: queueService,
                 timerEngine: timerEngine,
                 rewardEngine: rewardEngine,
-                analytics: analytics
+                analytics: analytics,
+                focusNotifications: focusAlertCenter,
+                notificationAuthorizer: focusAlertCenter
             )
         }
         guard !didBootstrap else {
