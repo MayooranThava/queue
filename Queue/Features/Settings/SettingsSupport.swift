@@ -17,14 +17,16 @@ enum UserPreferencesStore {
     }
 }
 
-/// Fields Settings is allowed to write on `UserPreferencesEntity`.
+/// Fields Settings writes on `UserPreferencesEntity`.
 ///
-/// `autoStartNextTask` is intentionally absent. A separate change owns the
-/// Start next control that reads it. `hasCompletedOnboarding` is launch state,
-/// not a preference.
+/// `hasCompletedOnboarding` is launch state, not a preference.
 enum UserPreferencesSettingsEditor {
     static func setCompanionVisible(_ value: Bool, on entity: UserPreferencesEntity) {
         entity.companionVisible = value
+    }
+
+    static func setAutoStartNextTask(_ value: Bool, on entity: UserPreferencesEntity) {
+        entity.autoStartNextTask = value
     }
 
     static func setAnimationIntensity(_ value: AnimationIntensity, on entity: UserPreferencesEntity) {

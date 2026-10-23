@@ -411,41 +411,24 @@ final class TaskRepository {
 
     /// Publishes timestamps to the App Group so Queue chrome, widgets, and Live Activities stay in sync.
     private func syncWidgetSnapshot(_ session: FocusSession) {
-        guard session.state == .running || session.state == .paused || session.state == .expired else {
-            FocusActivityStore.clear()
-            return
-        }
         let taskID = session.taskID
         let descriptor = FetchDescriptor<TaskEntity>(
             predicate: #Predicate { $0.id == taskID }
         )
-        guard let entity = try? context.fetch(descriptor).first else {
+        guard let entity = try? context.fetch(descriptor).first,
+              let snapshot = FocusWidgetSnapshot.live(task: entity.asDomain(), session: session)
+        else {
             FocusActivityStore.clear()
             return
         }
-        let task = entity.asDomain()
-        FocusActivityStore.save(
-            FocusWidgetSnapshot(
-                taskID: task.id,
-                taskTitle: task.title,
-                difficultyDisplayName: task.difficulty.displayName,
-                estimatedDuration: task.estimatedDuration,
-                session: session
-            )
-        )
+        FocusActivityStore.save(snapshot)
     }
 
     func currentFocusSnapshot() async -> FocusWidgetSnapshot? {
         if let session = await timerEngine.snapshotted(),
            session.state == .running || session.state == .paused || session.state == .expired {
-            if let task = await queueService.task(id: session.taskID) {
-                let snapshot = FocusWidgetSnapshot(
-                    taskID: task.id,
-                    taskTitle: task.title,
-                    difficultyDisplayName: task.difficulty.displayName,
-                    estimatedDuration: task.estimatedDuration,
-                    session: session
-                )
+            if let task = await queueService.task(id: session.taskID),
+               let snapshot = FocusWidgetSnapshot.live(task: task, session: session) {
                 FocusActivityStore.save(snapshot)
                 await syncFocusAlert(session, taskTitle: task.title)
                 return snapshot
