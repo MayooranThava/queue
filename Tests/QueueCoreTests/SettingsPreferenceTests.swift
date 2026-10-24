@@ -31,7 +31,7 @@ struct SettingsPreferenceTests {
 
     @Test("Companion visibility defaults on until the app publishes a choice")
     func companionVisibilityStore() {
-        let suite = "queue.companion.preference.tests"
+        let suite = "queue.companion.preference.tests.\(UUID())"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
         defer { defaults.removePersistentDomain(forName: suite) }

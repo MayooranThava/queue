@@ -174,8 +174,8 @@ struct QueueWidgetSnapshotTests {
 
     @Test("Snapshot round-trips through the App Group defaults")
     func storeRoundTrip() {
-        let defaults = isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: defaultsSuite) }
+        let (defaults, suite) = isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
         QueueActivityStore.clear(defaults: defaults)
         let snapshot = QueueWidgetSnapshotBuilder.make(
             tasks: [task(title: "Pause check", position: 0, duration: 15 * 60)],
@@ -191,8 +191,8 @@ struct QueueWidgetSnapshotTests {
 
     @Test("Widget edits bump a generation the app can observe")
     func generationBump() {
-        let defaults = isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: defaultsSuite) }
+        let (defaults, suite) = isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
         #expect(WidgetStoreGeneration.current(defaults: defaults) == 0)
         #expect(WidgetStoreGeneration.bump(defaults: defaults) == 1)
         #expect(WidgetStoreGeneration.bump(defaults: defaults) == 2)
@@ -221,12 +221,11 @@ struct QueueWidgetSnapshotTests {
         #expect(AppGroupStoreMigration.widgetMayOpenStore(appGroupAvailable: false, markerExists: false))
     }
 
-    private let defaultsSuite = "queue.widget.tests"
-
-    private func isolatedDefaults() -> UserDefaults {
-        let defaults = UserDefaults(suiteName: defaultsSuite)!
-        defaults.removePersistentDomain(forName: defaultsSuite)
-        return defaults
+    private func isolatedDefaults() -> (UserDefaults, String) {
+        let suite = "queue.widget.tests.\(UUID())"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        return (defaults, suite)
     }
 
     private func task(
