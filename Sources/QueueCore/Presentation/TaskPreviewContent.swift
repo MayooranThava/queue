@@ -149,7 +149,7 @@ public struct TaskPreviewContent: Equatable, Sendable {
 
     /// Drops a single leading list marker (`-`, `*`, `•`, `1.`, `2)`).
     private static func stepText(_ line: String) -> String {
-        var text = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = line.trimmingCharacters(in: .whitespacesAndNewlines)
         for bullet in ["- ", "* ", "• ", "– "] where text.hasPrefix(bullet) {
             return text.dropFirst(bullet.count).trimmingCharacters(in: .whitespacesAndNewlines)
         }
