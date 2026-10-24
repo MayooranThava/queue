@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Build or test the Queue scheme for the iOS Simulator.
-# Usage: xcodebuild-simulator.sh <build|test> <destination>
+# Usage: xcodebuild-simulator.sh <build|test> <destination> [extra xcodebuild args...]
+# QUEUE_RESULT_BUNDLE overrides the xcresult file name (default QueueTests.xcresult).
 set -euo pipefail
 
-action="${1:?usage: xcodebuild-simulator.sh build|test <destination>}"
+action="${1:?usage: xcodebuild-simulator.sh build|test <destination> [extra xcodebuild args...]}"
 destination="${2:?destination required}"
+shift 2
 
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$root"
@@ -40,11 +42,13 @@ case "$action" in
       2>&1 | tee "$log_dir/xcodebuild-build.log"
     ;;
   test)
-    rm -rf "$log_dir/QueueTests.xcresult"
+    result_name="${QUEUE_RESULT_BUNDLE:-QueueTests.xcresult}"
+    rm -rf "$log_dir/$result_name"
     xcodebuild test "${args[@]}" \
+      "$@" \
       -parallel-testing-enabled NO \
       -maximum-concurrent-test-simulator-destinations 1 \
-      -resultBundlePath "$log_dir/QueueTests.xcresult" \
+      -resultBundlePath "$log_dir/$result_name" \
       2>&1 | tee "$log_dir/xcodebuild-test.log"
     ;;
   *)

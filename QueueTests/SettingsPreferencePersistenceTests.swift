@@ -76,6 +76,46 @@ final class SettingsPreferencePersistenceTests: XCTestCase {
         XCTAssertNotEqual(displayed, "0.1.0-phase1")
     }
 
+    func testSettingsStickAfterRelaunch() throws {
+        let directory = try QueueTestFixture.temporaryDirectory(prefix: "queue-settings")
+        defer { QueueTestFixture.remove(directory) }
+        let url = QueueTestFixture.storeURL(in: directory)
+        let suiteName = "queue.settings.relaunch.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        try autoreleasepool {
+            let container = try AppModelContainer.makePersistent(storeURL: url)
+            let context = ModelContext(container)
+            let prefs = UserPreferencesEntity(hasCompletedOnboarding: false)
+            context.insert(prefs)
+            prefs.hasCompletedOnboarding = true
+            UserPreferencesSettingsEditor.setCompanionVisible(false, on: prefs)
+            UserPreferencesSettingsEditor.setAnimationIntensity(.reduced, on: prefs)
+            UserPreferencesSettingsEditor.setMotivationProfile(.speedRunner, on: prefs)
+            UserPreferencesSettingsEditor.setDailyGoalCount(4, on: prefs)
+            UserPreferencesSettingsEditor.setShowPlannedStartTimes(true, on: prefs)
+            UserPreferencesSettingsEditor.setAutoStartNextTask(true, on: prefs)
+            try context.save()
+            QueueThemeStore.save(.dusk, defaults: defaults)
+        }
+
+        try autoreleasepool {
+            let container = try AppModelContainer.makePersistent(storeURL: url)
+            let context = ModelContext(container)
+            let stored = try XCTUnwrap(context.fetch(FetchDescriptor<UserPreferencesEntity>()).first)
+            XCTAssertEqual(try context.fetch(FetchDescriptor<UserPreferencesEntity>()).count, 1)
+            XCTAssertTrue(stored.hasCompletedOnboarding)
+            XCTAssertFalse(stored.companionVisible)
+            XCTAssertEqual(stored.animationIntensityRaw, AnimationIntensity.reduced.rawValue)
+            XCTAssertEqual(stored.motivationProfile, .speedRunner)
+            XCTAssertEqual(stored.dailyGoalCount, 4)
+            XCTAssertTrue(stored.showPlannedStartTimes)
+            XCTAssertTrue(stored.autoStartNextTask)
+        }
+        XCTAssertEqual(QueueThemeStore.current(defaults: defaults).id, QueueTheme.dusk.id)
+    }
+
     func testNotificationsRowUsesTheSystemSettingsURL() {
         let url = AppSettingsLink.url
         XCTAssertNotNil(url)
