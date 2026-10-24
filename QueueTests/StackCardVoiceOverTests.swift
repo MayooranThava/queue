@@ -1,3 +1,4 @@
+import Darwin
 import SwiftUI
 import UIKit
 import XCTest
@@ -14,13 +15,13 @@ final class StackCardVoiceOverTests: XCTestCase {
             QueueTestFixture.makeTask(title: "Beta outline", queuePosition: 1),
             QueueTestFixture.makeTask(title: "Gamma review", queuePosition: 2)
         ]
+        activateAccessibilityRuntime()
         let order = tasks.map(\.id)
         for size in [DynamicTypeSize.large, DynamicTypeSize.accessibility3] {
             let spy = CardSpy()
             let host = DeckHost(tasks: tasks, spy: spy, dynamicTypeSize: size)
             host.install()
-            settleAccessibilityTree()
-            let nodes = host.nodes()
+            let nodes = waitForCards(in: host, titles: tasks.map(\.title))
             let labels = nodes.map(Self.label(of:))
 
             for task in tasks {
@@ -39,6 +40,7 @@ final class StackCardVoiceOverTests: XCTestCase {
 
     func testPreviewAcceptsStandardAndIncreasedContrast() {
         let task = QueueTestFixture.makeTask(title: "Contrast sample")
+        activateAccessibilityRuntime()
         let content = TaskPreviewContent(task: task, position: 1)
         for contrast in [ColorSchemeContrast.standard, .increased] {
             let preview = TaskPreviewView(
@@ -52,10 +54,9 @@ final class StackCardVoiceOverTests: XCTestCase {
             let window = Self.makeWindow()
             window.rootViewController = host
             window.makeKeyAndVisible()
-            host.view.frame = window.bounds
+            host.view.frame = Self.windowFrame
             window.layoutIfNeeded()
-            settleAccessibilityTree()
-            let labels = AccessibilityTree.nodes(in: host.view).map(Self.label(of:))
+            let labels = waitForLabels(in: host.view, containing: task.title)
             XCTAssertTrue(
                 labels.contains { $0.contains(task.title) },
                 "Preview at \(contrast) did not show the title. Labels: \(labels)"
@@ -111,15 +112,64 @@ final class StackCardVoiceOverTests: XCTestCase {
         XCTAssertEqual(spy.events.last?.id, task.id)
     }
 
-    private func settleAccessibilityTree() {
+    /// SwiftUI builds VoiceOver elements only while an accessibility client is
+    /// attached. Unit tests have none, so turn on the same switch UI tests use.
+    private func activateAccessibilityRuntime() {
+        guard !Self.accessibilityRuntimeReady else { return }
+        guard let handle = dlopen("/usr/lib/libAccessibility.dylib", RTLD_NOW),
+              let symbol = dlsym(handle, "_AXSSetAutomationEnabled") else {
+            XCTFail("The accessibility runtime did not start, so VoiceOver actions cannot be read")
+            return
+        }
+        typealias SetAutomationEnabled = @convention(c) (Bool) -> Void
+        unsafeBitCast(symbol, to: SetAutomationEnabled.self)(true)
+        Self.accessibilityRuntimeReady = true
+    }
+
+    private func waitForCards(in host: DeckHost, titles: [String]) -> [NSObject] {
+        let deadline = Date().addingTimeInterval(8)
+        var latest: [NSObject] = []
+        while Date() < deadline {
+            host.layout()
+            latest = host.nodes()
+            let labels = latest.map(Self.label(of:))
+            let ready = titles.allSatisfy { title in
+                labels.contains { $0.contains("Task ") && $0.contains(title) }
+            }
+            if ready { return latest }
+            pump()
+        }
+        return latest
+    }
+
+    private func waitForLabels(in view: UIView, containing title: String) -> [String] {
+        let deadline = Date().addingTimeInterval(8)
+        var labels: [String] = []
+        while Date() < deadline {
+            view.frame = Self.windowFrame
+            view.setNeedsLayout()
+            view.layoutIfNeeded()
+            _ = view.drawHierarchy(in: Self.windowFrame, afterScreenUpdates: true)
+            labels = AccessibilityTree.nodes(in: view).map(Self.label(of:))
+            if labels.contains(where: { $0.contains(title) }) {
+                return labels
+            }
+            pump()
+        }
+        return labels
+    }
+
+    private func pump() {
         let published = expectation(description: "accessibility tree")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             published.fulfill()
         }
-        wait(for: [published], timeout: 2)
+        wait(for: [published], timeout: 1)
     }
 
     private static let menuActionNames = ["Preview", "Start focus", "Edit", "Skip for today", "Delete"]
+    private static let windowFrame = CGRect(x: 0, y: 0, width: 390, height: 900)
+    private static var accessibilityRuntimeReady = false
 
     private static func label(of element: NSObject) -> String {
         if let label = element.accessibilityLabel, !label.isEmpty {
@@ -129,10 +179,9 @@ final class StackCardVoiceOverTests: XCTestCase {
     }
 
     fileprivate static func makeWindow() -> UIWindow {
-        let frame = CGRect(x: 0, y: 0, width: 390, height: 900)
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
-        let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: frame)
-        window.frame = frame
+        let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: windowFrame)
+        window.frame = windowFrame
         return window
     }
 }
@@ -179,8 +228,19 @@ private final class DeckHost {
     func install() {
         window.rootViewController = controller
         window.makeKeyAndVisible()
-        controller.view.frame = window.bounds
+        controller.view.frame = StackCardVoiceOverTests.windowFrame
+        layout()
+    }
+
+    func layout() {
+        controller.view.frame = StackCardVoiceOverTests.windowFrame
+        controller.view.setNeedsLayout()
+        controller.view.layoutIfNeeded()
         window.layoutIfNeeded()
+        _ = controller.view.drawHierarchy(
+            in: StackCardVoiceOverTests.windowFrame,
+            afterScreenUpdates: true
+        )
     }
 
     func nodes() -> [NSObject] {
