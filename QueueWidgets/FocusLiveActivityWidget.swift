@@ -255,25 +255,36 @@ private struct LiveActivityCompanionRing: View {
     var isComplete: Bool
     var diameter: CGFloat
 
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var contrast
 
     private var lineWidth: CGFloat { max(2.5, diameter * 0.08) }
 
-    /// Terracotta while running or in light mode. Honey only finishes a dark ring.
+    /// The activity is painted on the dark column, so time's up is honey here.
+    /// Running stays primary. Pause uses secondary text.
     private var ringColor: Color {
-        let role: QueueColorRole = FocusActivityChrome.ringUsesHoney(
-            isComplete: isComplete,
-            isDark: colorScheme == .dark
-        ) ? .accent : .primary
-        return palette(role)
+        switch FocusRingMetrics.stroke(
+            isTimeUp: isComplete,
+            isPaused: state.session.state == .paused,
+            isDark: true
+        ) {
+        case .primary:
+            return palette(.primary)
+        case .accent:
+            return palette(.accent)
+        case .paused:
+            return palette(.textSecondary)
+        }
+    }
+
+    private var trackColor: Color {
+        palette(.textPrimary).opacity(FocusRingMetrics.trackOpacity)
     }
 
     private func palette(_ role: QueueColorRole) -> Color {
         QueueColors.concrete(
             role,
             theme: QueueThemeStore.current(),
-            scheme: colorScheme,
+            scheme: .dark,
             increasedContrast: contrast == .increased
         )
     }
@@ -293,6 +304,8 @@ private struct LiveActivityCompanionRing: View {
     @ViewBuilder
     private var ring: some View {
         if let interval = runningInterval {
+            // Built-in circular style keeps counting down without activity updates.
+            // A custom style would freeze fractionCompleted in a Live Activity.
             ProgressView(timerInterval: interval, countsDown: true) {
                 EmptyView()
             } currentValueLabel: {
@@ -301,18 +314,21 @@ private struct LiveActivityCompanionRing: View {
             .progressViewStyle(.circular)
             .tint(ringColor)
             .labelsHidden()
-            .frame(width: diameter, height: diameter)
         } else {
-            let fraction = CGFloat(isComplete ? 1 : min(1, max(0, state.progress())))
             ZStack {
                 Circle()
-                    .stroke(QueueColors.dark(.textPrimary).opacity(0.18), lineWidth: lineWidth)
+                    .stroke(trackColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 Circle()
-                    .trim(from: 0, to: fraction)
+                    .trim(from: 0, to: CGFloat(staticFill))
                     .stroke(ringColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
             }
+            .padding(lineWidth / 2)
         }
+    }
+
+    private var staticFill: Double {
+        FocusRingMetrics.ringFill(progress: state.progress(), isTimeUp: isComplete)
     }
 
     /// Full planned window, so the system ring keeps matching the countdown without activity updates.

@@ -7,10 +7,13 @@ import QueueCore
 struct FocusSessionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.queueTheme) private var queueTheme
     @Environment(\.queueCompanionVisible) private var companionVisible
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var services: AppServices
+    @ScaledMetric(relativeTo: .largeTitle) private var timerFontSize: CGFloat = 56
+    @ScaledMetric(relativeTo: .caption) private var captionFontSize: CGFloat = 13
 
     @State private var currentTask: QueueTask
     @State private var session: FocusSession?
@@ -115,25 +118,39 @@ struct FocusSessionView: View {
             TimelineView(.periodic(from: .now, by: reduceMotion ? 1 : 0.25)) { context in
                 let remaining = displayedRemaining(at: context.date)
                 let progress = ringProgress(at: context.date)
-                VStack(spacing: QueueSpacing.md) {
+                let timeUp = isTimeUp(at: context.date)
+                VStack(spacing: QueueSpacing.sm) {
                     ZStack {
                         FocusCountdownRing(
                             progress: progress,
-                            isExpired: session?.state == .expired,
+                            isExpired: timeUp,
                             isPaused: session?.state == .paused,
-                            reduceMotion: reduceMotion
+                            reduceMotion: reduceMotion,
+                            lineWidth: CGFloat(FocusRingMetrics.focusLineWidth)
                         )
-                        .frame(width: 220, height: 220)
+                        .frame(width: ringDiameter, height: ringDiameter)
 
                         VStack(spacing: QueueSpacing.xs) {
                             Text(timeLabel(remaining))
-                                .font(QueueTypography.monoTimer(56))
+                                .font(QueueTypography.monoTimer(timerFontSize))
                                 .foregroundStyle(QueueColors.textPrimary)
                                 .contentTransition(.numericText())
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.3)
+                                .frame(maxWidth: ringDiameter * 0.84)
                                 .accessibilityLabel("Time remaining \(spokenTime(remaining))")
 
-                            statusCaption
+                            if captionFitsInsideRing {
+                                statusCaption(timeUp: timeUp, maxWidth: captionWidth)
+                            }
                         }
+                        .frame(width: ringDiameter)
+                    }
+                    .frame(width: ringDiameter, height: ringDiameter)
+
+                    if !captionFitsInsideRing {
+                        statusCaption(timeUp: timeUp, maxWidth: nil)
+                            .padding(.horizontal, QueueSpacing.xl)
                     }
                 }
                 .onChange(of: remaining) { _, newValue in
@@ -166,20 +183,43 @@ struct FocusSessionView: View {
         }
     }
 
+    private var ringDiameter: CGFloat { CGFloat(FocusRingMetrics.focusDiameter) }
+
+    private var captionWidth: CGFloat {
+        ringDiameter * CGFloat(FocusRingMetrics.captionWidthFraction)
+    }
+
+    /// Accessibility sizes move the caption out so the clock can scale inside the ring.
+    private var captionFitsInsideRing: Bool {
+        !dynamicTypeSize.isAccessibilitySize
+    }
+
+    private func statusCaption(timeUp: Bool, maxWidth: CGFloat?) -> some View {
+        let label = captionLabel(timeUp: timeUp)
+            .font(QueueTypography.caption(captionFontSize))
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .minimumScaleFactor(0.65)
+        return Group {
+            if let maxWidth {
+                label.frame(width: maxWidth)
+            } else {
+                label.frame(maxWidth: .infinity)
+            }
+        }
+    }
+
     @ViewBuilder
-    private var statusCaption: some View {
-        if let session, session.state == .expired {
+    private func captionLabel(timeUp: Bool) -> some View {
+        if timeUp {
             Text("Time’s up — finish when you’re ready")
-                .font(QueueTypography.caption())
                 .foregroundStyle(QueueColors.rewardMark)
                 .transition(.opacity)
         } else if session?.state == .paused {
             Text("Paused")
-                .font(QueueTypography.caption())
                 .foregroundStyle(QueueColors.textSecondary)
         } else {
             Text(currentTask.difficulty.displayName + " · " + durationLabel(currentTask.estimatedDuration))
-                .font(QueueTypography.caption())
                 .foregroundStyle(QueueColors.textSecondary)
         }
     }
@@ -458,11 +498,22 @@ struct FocusSessionView: View {
         return session.remaining(at: now)
     }
 
+    private func isTimeUp(at now: Date) -> Bool {
+        guard let session else { return false }
+        return FocusActivityChrome.isTimeUp(
+            state: session.state,
+            remaining: session.remaining(at: now),
+            isStale: false
+        )
+    }
+
     private func ringProgress(at now: Date) -> Double {
         guard let session else { return 1 }
-        let total = max(1, session.totalPlanned)
-        let remaining = session.remaining(at: now)
-        return remaining / total
+        return FocusRingMetrics.ringFill(
+            remaining: session.remaining(at: now),
+            planned: session.totalPlanned,
+            isTimeUp: isTimeUp(at: now)
+        )
     }
 
     private func timeLabel(_ interval: TimeInterval) -> String {
@@ -490,6 +541,7 @@ private struct FocusBreakView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.queueCompanionVisible) private var companionVisible
     @Environment(\.scenePhase) private var scenePhase
+    @ScaledMetric(relativeTo: .largeTitle) private var timerFontSize: CGFloat = 56
     @State private var didNotifyElapsed = false
 
     var body: some View {
@@ -513,18 +565,23 @@ private struct FocusBreakView: View {
                     now: context.date
                 )
                 let progress = duration > 0 ? remaining / duration : 0
+                let diameter = CGFloat(FocusRingMetrics.focusDiameter)
                 ZStack {
                     FocusCountdownRing(
                         progress: progress,
                         isExpired: false,
                         isPaused: false,
-                        reduceMotion: reduceMotion
+                        reduceMotion: reduceMotion,
+                        lineWidth: CGFloat(FocusRingMetrics.focusLineWidth)
                     )
-                    .frame(width: 220, height: 220)
+                    .frame(width: diameter, height: diameter)
 
                     Text(FocusTimerFormatting.clock(remaining))
-                        .font(QueueTypography.monoTimer(56))
+                        .font(QueueTypography.monoTimer(timerFontSize))
                         .foregroundStyle(QueueColors.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.3)
+                        .frame(maxWidth: diameter * 0.84)
                         .accessibilityLabel("Break time remaining \(FocusTimerFormatting.spoken(remaining))")
                 }
             }
