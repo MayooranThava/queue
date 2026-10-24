@@ -69,6 +69,22 @@ struct FocusRingMetricsTests {
         #expect(FocusRingMetrics.strokeRole(isTimeUp: false, isPaused: true, isDark: true) == .textSecondary)
     }
 
+    @Test("Time's up ring reaches 3:1 against the background in every theme")
+    func timeUpRingContrast() {
+        for theme in QueueTheme.all {
+            for dark in [false, true] {
+                let palette = dark ? theme.dark : theme.light
+                let mode = dark ? "dark" : "light"
+                let role = FocusRingMetrics.strokeRole(isTimeUp: true, isPaused: false, isDark: dark)
+                let ratio = palette.color(for: role).contrastRatio(against: palette.background)
+                #expect(ratio >= 3, "\(theme.name) \(mode) \(role) on background is \(ratio)")
+                if !dark {
+                    #expect(role != .accent, "\(theme.name) light time's up ring must not be honey")
+                }
+            }
+        }
+    }
+
     @Test("Choosing primary in light mode is not the honey swatch")
     func lightPrimaryIsNotHoney() {
         for theme in QueueTheme.all {
