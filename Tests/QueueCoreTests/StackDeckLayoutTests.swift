@@ -1,255 +1,264 @@
-import Testing
 import Foundation
+import Testing
 @testable import QueueCore
 
 @Suite("Stack deck layout")
 struct StackDeckLayoutTests {
-    @Test("Resting deck shows Now, four peeks, then one overflow card")
-    func restingWindow() {
-        let cards = StackDeckLayout.cards(taskCount: 9, expandedIndex: 0)
-        #expect(cards.compactMap(\.taskIndex) == [0, 1, 2, 3, 4])
-        #expect(cards.filter(\.isExpanded).compactMap(\.taskIndex) == [0])
-        #expect(cards.map(\.depth) == [0, 1, 2, 3, 4, 5])
-        guard case .overflow(let hidden, let first) = cards.last?.role else {
-            Issue.record("Expected a trailing overflow card")
-            return
-        }
-        #expect(hidden == 4)
-        #expect(first == 5)
-        #expect(StackDeckLayout.overflowTitle(hiddenCount: hidden) == "+4 more")
-        #expect(StackDeckLayout.overflowAccessibilityLabel(hiddenCount: hidden) == "4 more tasks")
-    }
-
-    @Test("Five tasks need no overflow card")
-    func fiveTasksFit() {
-        let cards = StackDeckLayout.cards(taskCount: 5, expandedIndex: 0)
-        #expect(cards.count == 5)
-        #expect(cards.allSatisfy { $0.taskIndex != nil })
-    }
-
-    @Test("The sixth task collapses into +1 more")
-    func sixthTaskOverflows() {
-        let cards = StackDeckLayout.cards(taskCount: 6, expandedIndex: 0)
-        guard case .overflow(let hidden, let first) = cards.last?.role else {
-            Issue.record("Expected overflow")
-            return
-        }
-        #expect(hidden == 1)
-        #expect(first == 5)
-        #expect(StackDeckLayout.overflowTitle(hiddenCount: 1) == "+1 more")
-        #expect(StackDeckLayout.overflowAccessibilityLabel(hiddenCount: 1) == "1 more task")
-    }
-
-    @Test("Expanding a peek keeps queue order and grows that card in place")
-    func expandInPlace() {
-        let before = StackDeckLayout.visibleTaskIndices(taskCount: 8, expandedIndex: 0)
-        let after = StackDeckLayout.visibleTaskIndices(taskCount: 8, expandedIndex: 2)
-        #expect(before == [0, 1, 2, 3, 4])
-        #expect(after == [0, 1, 2, 3, 4])
-        let cards = StackDeckLayout.cards(taskCount: 8, expandedIndex: 2)
-        #expect(cards.filter(\.isExpanded).compactMap(\.taskIndex) == [2])
-        let depthByIndex = Dictionary(
-            uniqueKeysWithValues: cards.compactMap { card -> (Int, Int)? in
-                guard let index = card.taskIndex else { return nil }
-                return (index, card.depth)
-            }
-        )
-        #expect(depthByIndex[2] == .some(0))
-        #expect(depthByIndex[1] == .some(1))
-        #expect(depthByIndex[3] == .some(1))
-    }
-
-    @Test("Every expansion stays in ascending queue order")
-    func expansionsStayOrdered() {
+    @Test("Now is always the top zIndex and zIndex falls as the index rises")
+    func nowStaysInFront() {
         for count in 0...12 {
-            let upper = max(count, 1)
-            for expanded in 0..<upper {
-                let cards = StackDeckLayout.cards(taskCount: count, expandedIndex: expanded)
-                let indices = cards.compactMap(\.taskIndex)
-                #expect(indices == indices.sorted())
-                #expect(Set(indices).count == indices.count)
-                #expect(indices.allSatisfy { $0 >= 0 && $0 < count })
-                let peekCount = cards.filter { !$0.isExpanded && $0.taskIndex != nil }.count
-                #expect(peekCount <= StackDeckLayout.maxPeekingCards)
-                let overflowCount = cards.filter {
-                    if case .overflow = $0.role { return true }
-                    return false
-                }.count
-                #expect(overflowCount <= 1)
-                if count == 0 {
-                    #expect(cards.isEmpty)
-                } else {
-                    let expandedCards = cards.filter(\.isExpanded)
-                    #expect(expandedCards.count == 1)
-                    #expect(
-                        expandedCards[0].taskIndex
-                            == .some(StackDeckLayout.clampedExpandedIndex(expanded, taskCount: count))
+            for focus in [false, true] {
+                for plain in [false, true] {
+                    let cards = StackDeckLayout.cards(
+                        taskCount: count,
+                        nowHeight: 232,
+                        focusIsRunning: focus,
+                        plainList: plain
                     )
+                    if count == 0 {
+                        #expect(cards.isEmpty)
+                        continue
+                    }
+                    let now = cards.first { $0.isNow }
+                    #expect(now != nil)
+                    let top = cards.map(\.zIndex).max()
+                    #expect(now?.zIndex == top)
+                    let others = cards.filter { !$0.isNow }
+                    #expect(others.allSatisfy { now!.zIndex > $0.zIndex })
+                    let layers = cards.map(\.zIndex)
+                    #expect(layers == layers.sorted(by: >))
+                    #expect(Set(layers).count == layers.count)
                 }
             }
         }
     }
 
-    @Test("Past the first window the expanded task leads the next peeks")
-    func shiftedWindow() {
-        let indices = StackDeckLayout.visibleTaskIndices(taskCount: 12, expandedIndex: 6)
-        #expect(indices == [6, 7, 8, 9, 10])
-        let cards = StackDeckLayout.cards(taskCount: 12, expandedIndex: 6)
-        guard case .overflow(let hidden, let first) = cards.last?.role else {
-            Issue.record("Expected overflow")
-            return
+    @Test("At most four task cards show, and focus keeps only two behind Now")
+    func visibleWindow() {
+        for count in 0...12 {
+            let idle = StackDeckLayout.cards(taskCount: count, focusIsRunning: false)
+            let running = StackDeckLayout.cards(taskCount: count, focusIsRunning: true)
+            #expect(taskCards(idle).count <= StackDeckLayout.maxVisibleTasks)
+            #expect(behind(idle) <= StackDeckLayout.maxBehindCards)
+            #expect(behind(running) <= StackDeckLayout.focusingBehindCards)
+            #expect(taskCards(running).count <= 1 + StackDeckLayout.focusingBehindCards)
         }
-        #expect(hidden == 1)
-        #expect(first == 11)
+
+        let five = StackDeckLayout.cards(taskCount: 5, nowHeight: 232, focusIsRunning: false)
+        #expect(taskCards(five).map(\.taskIndex) == [0, 1, 2, 3])
+        #expect(five.last?.footer?.hiddenCount == 1)
+        #expect(five.last?.footer?.nextIndex == 4)
+
+        let focusing = StackDeckLayout.cards(taskCount: 5, nowHeight: 232, focusIsRunning: true)
+        #expect(taskCards(focusing).map(\.taskIndex) == [0, 1, 2])
+        #expect(behind(focusing) == 2)
+        #expect(focusing.last?.footer?.hiddenCount == 2)
+        #expect(focusing.last?.footer?.nextIndex == 3)
+
+        let exact = StackDeckLayout.cards(taskCount: 4, focusIsRunning: false)
+        #expect(exact.allSatisfy { $0.footer == nil })
+        #expect(taskCards(exact).count == 4)
     }
 
-    @Test("Flipping clamps at the ends and does not reorder ids")
-    func flipClampsWithoutReordering() {
-        let ids = (0..<6).map { _ in UUID() }
-        let original = ids
-        #expect(StackDeckLayout.flippedIndex(current: 0, direction: -1, taskCount: 4) == 0)
-        #expect(StackDeckLayout.flippedIndex(current: 3, direction: 1, taskCount: 4) == 3)
-        #expect(StackDeckLayout.flippedIndex(current: 1, direction: 1, taskCount: 4) == 2)
-
-        var expanded: UUID?
-        var seen = [ids[0]]
-        for _ in 0..<8 {
-            expanded = StackDeckLayout.taskIDAfterFlip(from: expanded, ids: ids, direction: 1)
-            let index = StackDeckLayout.expandedIndex(matching: expanded, in: ids)
-            seen.append(ids[index])
+    @Test("Footer count plus visible cards equals the full queue")
+    func footerAccountsForEveryone() {
+        for count in 0...12 {
+            for focus in [false, true] {
+                let cards = StackDeckLayout.cards(taskCount: count, focusIsRunning: focus)
+                let visible = taskCards(cards).count
+                let footers = cards.compactMap(\.footer)
+                #expect(footers.count <= 1)
+                let hidden = footers.first?.hiddenCount ?? 0
+                #expect(visible + hidden == count)
+                if let footer = footers.first {
+                    #expect(footer.nextIndex == visible)
+                    #expect(hidden > 0)
+                }
+            }
         }
-        #expect(ids == original)
-        #expect(seen == [ids[0], ids[1], ids[2], ids[3], ids[4], ids[5], ids[5], ids[5], ids[5]])
-
-        expanded = ids[2]
-        expanded = StackDeckLayout.taskIDAfterFlip(from: expanded, ids: ids, direction: -1)
-        #expect(expanded == ids[1])
-        expanded = StackDeckLayout.taskIDAfterFlip(from: expanded, ids: ids, direction: -1)
-        #expect(expanded == nil)
-        #expect(StackDeckLayout.expandedIndex(matching: nil, in: ids) == 0)
-        expanded = StackDeckLayout.taskIDAfterFlip(from: nil, ids: ids, direction: -1)
-        #expect(expanded == nil)
     }
 
-    @Test("Expanding resolves to a task id without moving Now")
-    func expandIdentity() {
-        let ids = (0..<4).map { _ in UUID() }
-        #expect(StackDeckLayout.taskIDAfterExpand(index: 0, ids: ids) == nil)
-        #expect(StackDeckLayout.taskIDAfterExpand(index: 2, ids: ids) == ids[2])
-        #expect(StackDeckLayout.taskIDAfterExpand(index: 99, ids: ids) == ids[3])
-        #expect(StackDeckLayout.expandedIndex(matching: UUID(), in: ids) == 0)
-        #expect(StackDeckLayout.cards(taskCount: 0, expandedIndex: 3).isEmpty)
-        let single = StackDeckLayout.cards(taskCount: 1, expandedIndex: 4)
-        #expect(single.count == 1)
-        #expect(single[0].isExpanded)
-        #expect(single[0].taskIndex == .some(0))
+    @Test("Stack order is the list order, and the widget uses that same order")
+    func orderMatchesListAndWidget() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let tasks = [
+            sample("To3", position: 2, at: 40),
+            sample("Done", position: 5, at: 5, status: .completed),
+            sample("Yo2", position: 1, at: 30),
+            sample("Later tie", position: 3, at: 70),
+            sample("Earlier tie", position: 3, at: 60),
+            sample("Yo", position: 0, at: 20),
+            sample("Pep3", position: 4, at: 80),
+            sample("Skipped", position: 6, at: 90, status: .skipped)
+        ]
+        let listed = QueueOrdering.activeTasks(tasks)
+        #expect(listed.map(\.title) == ["Yo", "Yo2", "To3", "Earlier tie", "Later tie", "Pep3"])
+
+        let snapshot = QueueWidgetSnapshotBuilder.make(tasks: tasks, at: now)
+        let widgetIDs = [snapshot.now?.id].compactMap { $0 } + snapshot.upNext.map(\.id)
+        #expect(widgetIDs == listed.prefix(widgetIDs.count).map(\.id))
+        #expect(snapshot.now?.title == "Yo")
+        #expect(snapshot.upNext.first?.title == "Yo2")
+
+        let cards = StackDeckLayout.cards(taskCount: listed.count, nowHeight: 232)
+        let stackIDs = cards.compactMap(\.taskIndex).map { listed[$0].id }
+        #expect(stackIDs == listed.prefix(stackIDs.count).map(\.id))
+        #expect(cards.compactMap(\.taskIndex) == Array(0..<stackIDs.count))
+        #expect(cards.last?.footer?.nextIndex == stackIDs.count)
+        #expect(listed[cards.last?.footer?.nextIndex ?? 0].title == "Later tie")
     }
 
-    @Test("Back cards keep a full-card body and only a peek between tops")
-    func walletCardOffsets() {
-        let full = 300.0
-        let peek = 72.0
-        #expect(StackDeckLayout.cardTopOffset(slot: 0, expandedSlot: 0, fullHeight: full, peekHeight: peek) == 0)
-        #expect(StackDeckLayout.cardTopOffset(slot: 1, expandedSlot: 0, fullHeight: full, peekHeight: peek) == full)
-        #expect(StackDeckLayout.cardTopOffset(slot: 2, expandedSlot: 0, fullHeight: full, peekHeight: peek) == full + peek)
-        #expect(StackDeckLayout.cardTopOffset(slot: 4, expandedSlot: 0, fullHeight: full, peekHeight: peek) == full + peek * 3)
-        #expect(StackDeckLayout.visibleStackHeight(visibleCount: 5, fullHeight: full, peekHeight: peek) == full + peek * 4)
-        #expect(StackDeckLayout.visibleStackHeight(visibleCount: 0, fullHeight: full, peekHeight: peek) == 0)
+    @Test("Back cards tuck under the card above and the footer finishes the stack")
+    func tuckAndBottomEdge() {
+        let nowHeight = 232.0
+        let cards = StackDeckLayout.cards(taskCount: 5, nowHeight: nowHeight, focusIsRunning: false)
+        #expect(cards[0].y == 0)
+        #expect(cards[0].height == nowHeight)
+        #expect(cards[0].inset == 0)
+        #expect(cards[1].inset == StackDeckLayout.insetStep)
+        #expect(cards[2].inset == StackDeckLayout.insetStep * 2)
+        #expect(cards[3].inset == StackDeckLayout.insetStep * 3)
 
-        let above = StackDeckLayout.cardTopOffset(slot: 1, expandedSlot: 2, fullHeight: full, peekHeight: peek)
-        let expanded = StackDeckLayout.cardTopOffset(slot: 2, expandedSlot: 2, fullHeight: full, peekHeight: peek)
-        let below = StackDeckLayout.cardTopOffset(slot: 3, expandedSlot: 2, fullHeight: full, peekHeight: peek)
-        #expect(above == peek)
-        #expect(expanded - above == peek)
-        #expect(below - expanded == full)
-        // The card behind is full height, so it continues under the next card.
-        #expect((above + full) - expanded == full - peek)
+        for index in 1..<4 {
+            let previous = cards[index - 1]
+            let card = cards[index]
+            let previousBottom = previous.y + previous.height
+            #expect(card.y < previousBottom)
+            #expect(abs((previousBottom - card.y) - StackDeckLayout.tuck) < 0.001)
+            #expect(abs((card.y + card.height - previousBottom) - StackDeckLayout.peekHeight) < 0.001)
+        }
 
-        let lastTop = StackDeckLayout.cardTopOffset(slot: 4, expandedSlot: 0, fullHeight: full, peekHeight: peek)
-        let stackHeight = StackDeckLayout.visibleStackHeight(visibleCount: 5, fullHeight: full, peekHeight: peek)
-        #expect(stackHeight - lastTop == peek)
-        #expect(lastTop + full > stackHeight)
-        #expect(StackDeckLayout.visibleStackHeight(visibleCount: 1, fullHeight: full, peekHeight: peek) == full)
-        #expect(StackDeckLayout.cardTopOffset(slot: 1, expandedSlot: 0, fullHeight: .nan, peekHeight: peek) == 0)
+        let lastPeekBottom = cards[3].y + cards[3].height
+        let footer = cards[4]
+        #expect(footer.footer != nil)
+        #expect(footer.y == lastPeekBottom)
+        let height = StackDeckLayout.stackHeight(of: cards)
+        #expect(footer.y + footer.height == height)
+        for card in cards {
+            #expect(card.y >= 0)
+            #expect(card.y + card.height <= height + 0.001)
+        }
+    }
 
-        let mid = StackDeckLayout.cardTopOffset(slot: 1, expandedSlot: 0.5, fullHeight: full, peekHeight: peek)
-        let atRest = StackDeckLayout.cardTopOffset(slot: 1, expandedSlot: 0, fullHeight: full, peekHeight: peek)
-        let afterStep = StackDeckLayout.cardTopOffset(slot: 1, expandedSlot: 1, fullHeight: full, peekHeight: peek)
-        #expect(abs(mid - ((atRest + afterStep) / 2)) < 0.001)
+    @Test("Each step back is darker, and focus darkens the cards behind Now further")
+    func darkerNotLighter() {
+        #expect(StackDeckLayout.dimStep > 0)
+        #expect(StackDeckLayout.focusDimBoost > 0)
+        #expect(StackDeckLayout.dim(depth: 0, focusIsRunning: true) == 0)
+        #expect(StackDeckLayout.dim(depth: 0, focusIsRunning: false) == 0)
         #expect(
-            StackDeckLayout.cardTopOffset(slot: 2, expandedSlot: 1.0, fullHeight: full, peekHeight: peek)
-                == StackDeckLayout.cardTopOffset(slot: 2, expandedSlot: 1, fullHeight: full, peekHeight: peek)
+            StackDeckLayout.dim(depth: 2, focusIsRunning: false)
+                > StackDeckLayout.dim(depth: 1, focusIsRunning: false)
         )
-        #expect(StackDeckLayout.cardTopOffset(slot: 2, expandedSlot: .infinity, fullHeight: full, peekHeight: peek) == full + peek)
-    }
-
-    @Test("Depth scale compounds by 0.97 and peeks track Dynamic Type")
-    func depthAndPeekScale() {
-        #expect(StackDeckLayout.depthScale(depth: 0) == 1)
-        #expect(StackDeckLayout.depthScale(depth: -3) == 1)
-        #expect(abs(StackDeckLayout.depthScale(depth: 1) - 0.97) < 0.000_001)
-        #expect(abs(StackDeckLayout.depthScale(depth: 2) - (0.97 * 0.97)) < 0.000_001)
-        #expect(StackDeckLayout.scaledPeekHeight(factor: 1) == 72)
-        #expect(StackDeckLayout.scaledPeekHeight(factor: 1.5) == 108)
-        #expect(StackDeckLayout.scaledPeekHeight(factor: 0) == 72)
-        #expect(StackDeckLayout.scaledPeekHeight(factor: .nan) == 72)
-        #expect(StackDeckLayout.peekOverlap < StackDeckLayout.basePeekHeight / 2)
-    }
-
-    @Test("Running focus dims cards behind Now and restores them when it stops")
-    func backdropDim() {
-        #expect(StackDeckLayout.cardOpacity(isNowCard: true, focusIsRunning: true) == 1)
         #expect(
-            StackDeckLayout.cardOpacity(isNowCard: false, focusIsRunning: true)
-                == StackDeckLayout.runningBackdropOpacity
+            StackDeckLayout.dim(depth: 1, focusIsRunning: true)
+                > StackDeckLayout.dim(depth: 1, focusIsRunning: false)
         )
-        #expect(StackDeckLayout.cardOpacity(isNowCard: false, focusIsRunning: false) == 1)
-        #expect(StackDeckLayout.cardOpacity(isNowCard: true, focusIsRunning: false) == 1)
-        let contrasted = StackDeckLayout.cardOpacity(
-            isNowCard: false,
+
+        let idle = StackDeckLayout.cards(taskCount: 4, nowHeight: 232, focusIsRunning: false)
+        let running = StackDeckLayout.cards(taskCount: 4, nowHeight: 232, focusIsRunning: true)
+        #expect(abs(idle[1].dim - 0.06) < 0.000_001)
+        #expect(abs(idle[2].dim - 0.12) < 0.000_001)
+        #expect(abs(idle[3].dim - 0.18) < 0.000_001)
+        #expect(running[0].dim == 0)
+        #expect(running[1].dim > idle[1].dim)
+        #expect(running[2].dim > running[1].dim)
+        #expect(idle.last?.footer == nil)
+    }
+
+    @Test("Accessibility sizes lay the queue out as a plain list with no overlap")
+    func plainListDoesNotOverlap() {
+        let cards = StackDeckLayout.cards(
+            taskCount: 6,
+            nowHeight: 240,
             focusIsRunning: true,
-            increaseContrast: true
+            plainList: true
         )
-        #expect(contrasted == StackDeckLayout.runningBackdropOpacityIncreaseContrast)
-        #expect(contrasted > StackDeckLayout.runningBackdropOpacity)
+        #expect(cards.compactMap(\.taskIndex) == Array(0..<6))
+        #expect(cards.allSatisfy { $0.footer == nil })
+        #expect(cards.allSatisfy { $0.inset == 0 })
+        #expect(cards.allSatisfy { $0.dim == 0 })
+        for index in cards.indices.dropFirst() {
+            let previous = cards[index - 1]
+            #expect(cards[index].y >= previous.y + previous.height)
+            #expect(abs(cards[index].y - (previous.y + previous.height + StackDeckLayout.plainSpacing)) < 0.001)
+        }
+        let height = StackDeckLayout.stackHeight(of: cards)
+        #expect(cards.last!.y + cards.last!.height <= height)
     }
 
-    @Test("Reduced motion and reduced intensity crossfade instead of springing")
-    func motionChoice() {
-        #expect(StackDeckLayout.motion(reduceMotion: true, allowsMotion: true) == .crossfade)
-        #expect(StackDeckLayout.motion(reduceMotion: false, allowsMotion: false) == .crossfade)
-        #expect(StackDeckLayout.motion(reduceMotion: true, allowsMotion: false) == .crossfade)
-        #expect(StackDeckLayout.motion(reduceMotion: false, allowsMotion: true) == .spring)
+    @Test("A bad Now height falls back, and an empty queue draws nothing")
+    func sanitizesInput() {
+        #expect(StackDeckLayout.cards(taskCount: 0, nowHeight: 232).isEmpty)
+        let fallback = StackDeckLayout.cards(taskCount: 1, nowHeight: .nan)
+        #expect(fallback.count == 1)
+        #expect(fallback[0].height == StackDeckLayout.nowCardHeight)
+        #expect(fallback[0].isNow)
+        let negative = StackDeckLayout.cards(taskCount: 2, nowHeight: -10, focusIsRunning: true)
+        #expect(negative[0].height == StackDeckLayout.nowCardHeight)
+        #expect(behind(negative) == 1)
+        #expect(negative.allSatisfy { $0.footer == nil })
     }
 
-    @Test("Shadows belong to light mode; deeper cards get a lighter tint")
-    func depthStyle() {
-        #expect(StackDeckLayout.showsDepthShadow(isDark: false))
-        #expect(StackDeckLayout.showsDepthShadow(isDark: true) == false)
-        #expect(StackDeckLayout.depthLightenAmount(depth: 0) == 0)
-        #expect(StackDeckLayout.depthLightenAmount(depth: -2) == 0)
-        #expect(StackDeckLayout.depthLightenAmount(depth: 2) > StackDeckLayout.depthLightenAmount(depth: 1))
-        #expect(StackDeckLayout.depthLightenAmount(depth: 8) <= 0.18)
+    @Test("Footer copy names the hidden count and the next title")
+    func footerCopy() {
+        #expect(
+            StackDeckLayout.footerTitle(hiddenCount: 1, nextTitle: "Update LinkedIn headline")
+                == "+1 more · Update LinkedIn headline"
+        )
+        #expect(
+            StackDeckLayout.footerAccessibilityLabel(hiddenCount: 1, nextTitle: "Update LinkedIn headline")
+                == "1 more task, Update LinkedIn headline"
+        )
+        #expect(
+            StackDeckLayout.footerAccessibilityLabel(hiddenCount: 2, nextTitle: "To3")
+                == "2 more tasks, To3"
+        )
     }
 
-    @Test("Swipe direction flips the deck")
-    func swipeDirection() {
-        #expect(StackDeckLayout.flipDirection(translation: -80) == 1)
-        #expect(StackDeckLayout.flipDirection(translation: 80) == -1)
-        #expect(StackDeckLayout.flipDirection(translation: 12) == 0)
-        #expect(StackDeckLayout.flipDirection(translation: -10, predicted: -90) == 1)
-        #expect(StackDeckLayout.flipDirection(translation: 70, predicted: 10) == -1)
-    }
-
-    @Test("VoiceOver label names the queue position")
+    @Test("VoiceOver names the queue position")
     func voiceOverLabel() {
         #expect(
             StackDeckLayout.accessibilityLabel(
                 position: 2,
                 total: 5,
-                title: "Write spec",
-                detail: "20 min · Medium"
-            ) == "Task 2 of 5, Write spec, 20 min · Medium"
+                title: "Yo2",
+                detail: "15 min · Medium"
+            ) == "Task 2 of 5, Yo2, 15 min · Medium"
+        )
+    }
+
+    @Test("The deck springs unless motion is reduced")
+    func motionChoice() {
+        #expect(StackDeckLayout.springDuration == 0.35)
+        #expect(StackDeckLayout.motion(reduceMotion: false, allowsMotion: true) == .spring)
+        #expect(StackDeckLayout.motion(reduceMotion: true, allowsMotion: true) == .crossfade)
+        #expect(StackDeckLayout.motion(reduceMotion: false, allowsMotion: false) == .crossfade)
+        #expect(StackDeckLayout.peekHeight == 58)
+        #expect(StackDeckLayout.insetStep == 4)
+        #expect(StackDeckLayout.maxVisibleTasks == 4)
+        #expect(StackDeckLayout.focusingBehindCards == 2)
+    }
+
+    private func taskCards(_ cards: [StackDeckLayout.Card]) -> [StackDeckLayout.Card] {
+        cards.filter { $0.taskIndex != nil }
+    }
+
+    private func behind(_ cards: [StackDeckLayout.Card]) -> Int {
+        cards.compactMap(\.taskIndex).filter { $0 > 0 }.count
+    }
+
+    private func sample(
+        _ title: String,
+        position: Int,
+        at offset: TimeInterval,
+        status: TaskStatus = .queued
+    ) -> QueueTask {
+        QueueTask(
+            title: title,
+            createdAt: Date(timeIntervalSince1970: 1_700_000_000 + offset),
+            queuePosition: position,
+            status: status
         )
     }
 }

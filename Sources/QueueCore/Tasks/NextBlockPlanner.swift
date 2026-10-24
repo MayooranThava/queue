@@ -28,12 +28,7 @@ public enum NextBlockPlanner {
     public static func nextTask(after completedTaskID: UUID, in tasks: [QueueTask]) -> QueueTask? {
         tasks
             .filter { $0.id != completedTaskID && $0.status == .queued }
-            .sorted { lhs, rhs in
-                if lhs.queuePosition != rhs.queuePosition {
-                    return lhs.queuePosition < rhs.queuePosition
-                }
-                return lhs.createdAt < rhs.createdAt
-            }
+            .sorted(by: QueueOrdering.comesBefore)
             .first
     }
 

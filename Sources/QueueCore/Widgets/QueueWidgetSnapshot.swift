@@ -74,14 +74,7 @@ public enum QueueWidgetSnapshotBuilder {
         calendar: Calendar = .current,
         upNextLimit: Int = QueueWidgetSnapshotBuilder.upNextLimit
     ) -> QueueWidgetSnapshot {
-        let active = tasks
-            .filter(\.isInActiveQueue)
-            .sorted { lhs, rhs in
-                if lhs.queuePosition != rhs.queuePosition {
-                    return lhs.queuePosition < rhs.queuePosition
-                }
-                return lhs.createdAt < rhs.createdAt
-            }
+        let active = QueueOrdering.activeTasks(tasks)
 
         let head = active.first.map { task in
             QueueWidgetNow(

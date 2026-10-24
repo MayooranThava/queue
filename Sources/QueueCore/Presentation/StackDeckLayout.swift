@@ -1,48 +1,76 @@
 import Foundation
 
-/// Layout math for the Queue stack deck.
+/// Geometry for the Queue stack.
 ///
-/// Expanding, collapsing, or flipping only changes which task is shown full-size.
-/// The queue order itself never changes here. Moving a task to the top stays an
-/// explicit queue action owned by the caller.
+/// The deck is the head of the same ordered queue List and the widget show.
+/// Now sits in front. Each card behind is tucked under the one above it and
+/// only its lower strip is visible. A footer closes the stack when the queue
+/// is longer than that window, so the last card is never clipped.
 public enum StackDeckLayout {
-    /// Peeking task cards shown behind the expanded card before the overflow cap.
-    public static let maxPeekingCards = 4
-    /// Visible height of a peeking card at the default Dynamic Type size.
-    public static let basePeekHeight: Double = 72
-    /// Kept so older call sites can describe a hairline tuck. The deck itself
-    /// overlaps by a full card minus the peek, not by this distance.
-    public static let peekOverlap: Double = 8
-    /// Each step further from the expanded card is this fraction of the card in front of it.
-    public static let depthScaleStep: Double = 0.97
-    /// Cards other than Now drop to this opacity while focus is running.
-    public static let runningBackdropOpacity: Double = 0.62
-    /// Stronger backdrop when Increase Contrast is on, so the titles behind Now stay readable.
-    public static let runningBackdropOpacityIncreaseContrast: Double = 0.88
-    public static let flipTranslationThreshold: Double = 56
+    /// Visible strip of each card tucked under the card in front.
+    public static let peekHeight: Double = 58
+    /// Extra horizontal inset, per step back from Now.
+    public static let insetStep: Double = 4
+    /// How far a back card continues up under the card in front of it.
+    public static let tuck: Double = 18
+    /// Now plus three cards behind.
+    public static let maxVisibleTasks = 4
+    /// Cards tucked behind Now while the queue is idle.
+    public static let maxBehindCards = 3
+    /// Cards tucked behind Now while focus is running.
+    public static let focusingBehindCards = 2
+    /// Content height of the Now card at the default text size. The view
+    /// measures the real card and passes that in; this is the fallback.
+    public static let nowCardHeight: Double = 232
+    /// Fully visible row under the last peek. It is the stack's bottom edge.
+    public static let footerHeight: Double = 44
+    /// How much darker each step back from Now is. Larger is darker.
+    public static let dimStep: Double = 0.06
+    /// Added on top of `dimStep` for every card behind Now while focus runs.
+    public static let focusDimBoost: Double = 0.10
+    /// Gap between full rows when accessibility sizes drop the overlap.
+    public static let plainSpacing: Double = 12
+    /// Height of a non-Now row in that plain list.
+    public static let plainRowHeight: Double = 88
+    /// Deck motion. The view uses `.spring(duration: springDuration)`.
+    public static let springDuration: Double = 0.35
 
     public enum Motion: Equatable, Sendable {
-        /// Wallet-style spring as the expanded card grows and the others slide.
         case spring
-        /// Reduce Motion, or the Reduced animation-intensity setting.
         case crossfade
     }
 
     public struct Card: Equatable, Sendable {
         public enum Role: Equatable, Sendable {
-            /// `index` is the task's position in the unchanged queue.
+            /// Index into the queue List is already showing, starting at Now.
             case task(index: Int)
-            /// Tasks past the peek cap. `firstHiddenIndex` is the next queue position.
-            case overflow(hiddenCount: Int, firstHiddenIndex: Int)
+            /// Tasks not given a face. `nextIndex` is the first of them.
+            case footer(hiddenCount: Int, nextIndex: Int)
         }
 
         public var role: Role
-        /// 0 is the expanded card. Larger values sit further back in the deck.
-        public var depth: Int
-        public var isExpanded: Bool
+        /// Top of this card's frame in the stack.
+        public var y: Double
+        /// Extra inset from the stack's leading and trailing edges.
+        public var inset: Double
+        /// Higher draws in front. Now is always strictly the greatest.
+        public var zIndex: Double
+        /// 0 leaves the surface untouched. Larger darkens the fill. Text is not faded.
+        public var dim: Double
+        /// Frame height. The tucked strip is included; the container must fit all of it.
+        public var height: Double
 
         public var taskIndex: Int? {
             if case .task(let index) = role { return index }
+            return nil
+        }
+
+        public var isNow: Bool { taskIndex == 0 }
+
+        public var footer: (hiddenCount: Int, nextIndex: Int)? {
+            if case .footer(let hiddenCount, let nextIndex) = role {
+                return (hiddenCount, nextIndex)
+            }
             return nil
         }
     }
@@ -52,181 +80,129 @@ public enum StackDeckLayout {
         return .spring
     }
 
-    /// Top of a visible slot. Back cards are drawn at `fullHeight`; the next card
-    /// starts `peekHeight` lower, so only the top strip of the card behind shows.
-    /// The expanded card is the exception: the following card starts after its full height.
-    public static func cardTopOffset(
-        slot: Int,
-        expandedSlot: Int,
-        fullHeight: Double,
-        peekHeight: Double
-    ) -> Double {
-        let full = finiteNonNegative(fullHeight)
-        let peek = finiteNonNegative(peekHeight)
-        let index = max(0, slot)
-        let expanded = max(0, expandedSlot)
-        if index <= expanded {
-            return Double(index) * peek
-        }
-        return Double(expanded) * peek + full + Double(index - expanded - 1) * peek
-    }
-
-    /// Interpolates `cardTopOffset` while the expanded slot moves between cards.
-    /// Integer values match the discrete placement. In-between values slide the
-    /// full-height gap instead of jumping by a card.
-    public static func cardTopOffset(
-        slot: Int,
-        expandedSlot: Double,
-        fullHeight: Double,
-        peekHeight: Double
-    ) -> Double {
-        let full = finiteNonNegative(fullHeight)
-        let peek = finiteNonNegative(peekHeight)
-        let index = max(0, slot)
-        guard expandedSlot.isFinite else {
-            return cardTopOffset(slot: index, expandedSlot: 0, fullHeight: full, peekHeight: peek)
-        }
-        let clamped = max(0, expandedSlot)
-        let lower = Int(clamped.rounded(.down))
-        let upper = Int(clamped.rounded(.up))
-        let start = cardTopOffset(slot: index, expandedSlot: lower, fullHeight: full, peekHeight: peek)
-        if lower == upper { return start }
-        let end = cardTopOffset(slot: index, expandedSlot: upper, fullHeight: full, peekHeight: peek)
-        return start + (end - start) * (clamped - Double(lower))
-    }
-
-    /// Visible stack height: one full card, plus a peek for every other visible slot.
-    public static func visibleStackHeight(
-        visibleCount: Int,
-        fullHeight: Double,
-        peekHeight: Double
-    ) -> Double {
-        guard visibleCount > 0 else { return 0 }
-        let full = finiteNonNegative(fullHeight)
-        let peek = finiteNonNegative(peekHeight)
-        return full + peek * Double(visibleCount - 1)
-    }
-
-    /// `factor` is the Dynamic Type scale (1 at the default content size).
-    public static func scaledPeekHeight(factor: Double) -> Double {
-        guard factor.isFinite, factor > 0 else { return basePeekHeight }
-        return basePeekHeight * factor
-    }
-
-    public static func depthScale(depth: Int) -> Double {
+    /// Darkening of a card `depth` steps behind Now. Depth 0 is Now and stays at 0.
+    /// Focusing adds `focusDimBoost` so the cards behind recede further.
+    /// The value is a fraction of a dark veil. It never lightens the surface.
+    public static func dim(depth: Int, focusIsRunning: Bool) -> Double {
         let steps = max(0, depth)
-        var scale = 1.0
-        for _ in 0..<steps {
-            scale *= depthScaleStep
-        }
-        return scale
+        guard steps > 0 else { return 0 }
+        let base = dimStep * Double(steps)
+        let amount = focusIsRunning ? base + focusDimBoost : base
+        return min(0.45, amount)
     }
 
-    /// Light mode separates cards with a soft shadow. Dark mode uses lighter surfaces instead.
-    public static func showsDepthShadow(isDark: Bool) -> Bool {
-        !isDark
+    public static func inset(depth: Int) -> Double {
+        insetStep * Double(max(0, depth))
     }
 
-    /// How strongly to veil the surface with a lighter palette tint. 0 is the front card.
-    public static func depthLightenAmount(depth: Int) -> Double {
-        let steps = max(0, depth)
-        return min(0.18, 0.045 * Double(steps))
-    }
-
-    public static func cardOpacity(isNowCard: Bool, focusIsRunning: Bool, increaseContrast: Bool = false) -> Double {
-        guard focusIsRunning, !isNowCard else { return 1 }
-        return increaseContrast ? runningBackdropOpacityIncreaseContrast : runningBackdropOpacity
-    }
-
-    /// Vertical drag maps to a deck flip. Negative travel moves to the next task.
-    /// Returns 1 for next, -1 for previous, and 0 when the drag should not flip.
-    public static func flipDirection(translation: Double, predicted: Double = 0) -> Int {
-        let travel = abs(predicted) > abs(translation) ? predicted : translation
-        if travel <= -flipTranslationThreshold { return 1 }
-        if travel >= flipTranslationThreshold { return -1 }
-        return 0
-    }
-
-    public static func clampedExpandedIndex(_ index: Int, taskCount: Int) -> Int {
-        guard taskCount > 0 else { return 0 }
-        return min(max(0, index), taskCount - 1)
-    }
-
-    public static func flippedIndex(current: Int, direction: Int, taskCount: Int) -> Int {
-        clampedExpandedIndex(current + direction, taskCount: taskCount)
-    }
-
-    /// `nil` is the resting deck: the current Now card (index 0) is expanded.
-    public static func expandedIndex(matching taskID: UUID?, in ids: [UUID]) -> Int {
-        guard let taskID, let index = ids.firstIndex(of: taskID) else { return 0 }
-        return index
-    }
-
-    /// Expanding index 0 returns `nil` so the deck rests on Now instead of pinning a stale id.
-    public static func taskIDAfterExpand(index: Int, ids: [UUID]) -> UUID? {
-        let next = clampedExpandedIndex(index, taskCount: ids.count)
-        guard next > 0, ids.indices.contains(next) else { return nil }
-        return ids[next]
-    }
-
-    public static func taskIDAfterFlip(from expandedTaskID: UUID?, ids: [UUID], direction: Int) -> UUID? {
-        let current = expandedIndex(matching: expandedTaskID, in: ids)
-        let next = flippedIndex(current: current, direction: direction, taskCount: ids.count)
-        guard next > 0, ids.indices.contains(next) else { return nil }
-        return ids[next]
-    }
-
-    /// Visible deck, top to bottom, in queue order.
+    /// Placements from the front of the queue to the back.
     ///
-    /// The resting deck is Now, up to four peeking cards, then one "+N more" card.
-    /// Expanding a card inside that window grows it in place. Past the window, the
-    /// expanded task leads and up to four cards behind it peek.
-    public static func cards(taskCount: Int, expandedIndex: Int) -> [Card] {
+    /// `plainList` is the accessibility-size layout: every task, no tuck,
+    /// no footer, and a gap instead of an overlap. Focus does not cap it.
+    public static func cards(
+        taskCount: Int,
+        nowHeight: Double = nowCardHeight,
+        focusIsRunning: Bool = false,
+        plainList: Bool = false
+    ) -> [Card] {
         guard taskCount > 0 else { return [] }
-        let expanded = clampedExpandedIndex(expandedIndex, taskCount: taskCount)
-        let windowStart = expanded <= maxPeekingCards ? 0 : expanded
-        let windowEnd = min(taskCount, windowStart + 1 + maxPeekingCards)
-        var cards: [Card] = []
-        for index in windowStart..<windowEnd {
-            cards.append(
-                Card(
-                    role: .task(index: index),
-                    depth: abs(index - expanded),
-                    isExpanded: index == expanded
-                )
-            )
+        let now = finitePositive(nowHeight, fallback: nowCardHeight)
+        if plainList {
+            return plainCards(taskCount: taskCount, nowHeight: now)
         }
-        let hidden = taskCount - windowEnd
-        if hidden > 0 {
-            cards.append(
-                Card(
-                    role: .overflow(hiddenCount: hidden, firstHiddenIndex: windowEnd),
-                    depth: max(abs(windowEnd - expanded), 1),
-                    isExpanded: false
-                )
-            )
-        }
-        return cards
+        return deckCards(taskCount: taskCount, nowHeight: now, focusIsRunning: focusIsRunning)
     }
 
-    public static func visibleTaskIndices(taskCount: Int, expandedIndex: Int) -> [Int] {
-        cards(taskCount: taskCount, expandedIndex: expandedIndex).compactMap(\.taskIndex)
+    public static func stackHeight(of cards: [Card]) -> Double {
+        cards.map { $0.y + $0.height }.max() ?? 0
     }
 
     public static func accessibilityLabel(position: Int, total: Int, title: String, detail: String) -> String {
         "Task \(position) of \(total), \(title), \(detail)"
     }
 
-    public static func overflowTitle(hiddenCount: Int) -> String {
-        "+\(hiddenCount) more"
+    public static func footerTitle(hiddenCount: Int, nextTitle: String) -> String {
+        "+\(hiddenCount) more · \(nextTitle)"
     }
 
-    public static func overflowAccessibilityLabel(hiddenCount: Int) -> String {
-        hiddenCount == 1 ? "1 more task" : "\(hiddenCount) more tasks"
+    public static func footerAccessibilityLabel(hiddenCount: Int, nextTitle: String) -> String {
+        let lead = hiddenCount == 1 ? "1 more task" : "\(hiddenCount) more tasks"
+        return "\(lead), \(nextTitle)"
     }
 
-    private static func finiteNonNegative(_ value: Double) -> Double {
-        guard value.isFinite, value > 0 else { return 0 }
+    // MARK: - Deck
+
+    private static func deckCards(taskCount: Int, nowHeight: Double, focusIsRunning: Bool) -> [Card] {
+        let behind = min(
+            focusIsRunning ? focusingBehindCards : maxBehindCards,
+            max(0, taskCount - 1)
+        )
+        let visible = 1 + behind
+        let hidden = taskCount - visible
+        let slots = visible + (hidden > 0 ? 1 : 0)
+        var cards: [Card] = []
+        cards.append(
+            Card(
+                role: .task(index: 0),
+                y: 0,
+                inset: inset(depth: 0),
+                zIndex: Double(slots),
+                dim: dim(depth: 0, focusIsRunning: focusIsRunning),
+                height: nowHeight
+            )
+        )
+        if behind > 0 {
+            let backHeight = peekHeight + tuck
+            for depth in 1...behind {
+                cards.append(
+                    Card(
+                        role: .task(index: depth),
+                        y: nowHeight + Double(depth - 1) * peekHeight - tuck,
+                        inset: inset(depth: depth),
+                        zIndex: Double(slots - depth),
+                        dim: dim(depth: depth, focusIsRunning: focusIsRunning),
+                        height: backHeight
+                    )
+                )
+            }
+        }
+        if hidden > 0 {
+            cards.append(
+                Card(
+                    role: .footer(hiddenCount: hidden, nextIndex: visible),
+                    y: nowHeight + Double(behind) * peekHeight,
+                    inset: 0,
+                    zIndex: Double(slots - visible),
+                    dim: 0,
+                    height: footerHeight
+                )
+            )
+        }
+        return cards
+    }
+
+    private static func plainCards(taskCount: Int, nowHeight: Double) -> [Card] {
+        var cards: [Card] = []
+        var y = 0.0
+        for index in 0..<taskCount {
+            let height = index == 0 ? nowHeight : plainRowHeight
+            cards.append(
+                Card(
+                    role: .task(index: index),
+                    y: y,
+                    inset: 0,
+                    zIndex: Double(taskCount - index),
+                    dim: 0,
+                    height: height
+                )
+            )
+            y += height + plainSpacing
+        }
+        return cards
+    }
+
+    private static func finitePositive(_ value: Double, fallback: Double) -> Double {
+        guard value.isFinite, value > 0 else { return fallback }
         return value
     }
 }

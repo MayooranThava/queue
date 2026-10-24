@@ -121,7 +121,7 @@ public struct SmartGapsEngine: Sendable {
         let gaps = freeGaps(busy: busy, in: range)
         let queued = tasks
             .filter { $0.status == .queued }
-            .sorted { $0.queuePosition < $1.queuePosition }
+            .sorted(by: QueueOrdering.comesBefore)
         guard let firstGap = gaps.first else { return nil }
 
         let usable = TimeGap(

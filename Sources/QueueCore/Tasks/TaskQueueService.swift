@@ -14,16 +14,11 @@ public actor TaskQueueService {
     }
 
     public func allTasks() -> [QueueTask] {
-        Array(tasks.values).sorted { lhs, rhs in
-            if lhs.queuePosition != rhs.queuePosition {
-                return lhs.queuePosition < rhs.queuePosition
-            }
-            return lhs.createdAt < rhs.createdAt
-        }
+        QueueOrdering.sorted(Array(tasks.values))
     }
 
     public func activeQueue() -> [QueueTask] {
-        allTasks().filter(\.isInActiveQueue)
+        QueueOrdering.activeTasks(Array(tasks.values))
     }
 
     public func activeTask() -> QueueTask? {

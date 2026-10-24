@@ -28,11 +28,9 @@ struct QueueHomeView: View {
     @State private var focusActionInFlight = false
     @State private var focusAlertsDenied = false
 
+    /// List, Stack, and the widget read this same order. The stack does not sort again.
     private var activeTasks: [QueueTask] {
-        taskEntities
-            .map { $0.asDomain() }
-            .filter(\.isInActiveQueue)
-            .sorted { $0.queuePosition < $1.queuePosition }
+        QueueOrdering.activeTasks(taskEntities.map { $0.asDomain() })
     }
 
     private var headTask: QueueTask? { activeTasks.first }
@@ -302,6 +300,7 @@ struct QueueHomeView: View {
                     focusAlertsDenied: focusAlertsDenied,
                     onEdit: { editingTask = $0 },
                     onOpenFocus: { focusTask = $0 },
+                    onOpenList: { queuePresentationMode = "list" },
                     onStartFocus: { task in
                         Task { await startFocusOnStack(task) }
                     },
