@@ -8,11 +8,32 @@ struct TaskPreviewView: View {
     var width: CGFloat
     var onOpen: () -> Void
     var onAddDetails: () -> Void
+    /// Nil follows the surrounding Increase Contrast setting.
+    /// Tests pass `.increased` or `.standard` directly. The system key is read-only.
+    private var contrastOverride: ColorSchemeContrast?
 
     @Environment(\.queueTheme) private var queueTheme
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.colorSchemeContrast) private var environmentContrast
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    init(
+        content: TaskPreviewContent,
+        width: CGFloat,
+        onOpen: @escaping () -> Void,
+        onAddDetails: @escaping () -> Void,
+        contrast: ColorSchemeContrast? = nil
+    ) {
+        self.content = content
+        self.width = width
+        self.onOpen = onOpen
+        self.onAddDetails = onAddDetails
+        self.contrastOverride = contrast
+    }
+
+    private var contrast: ColorSchemeContrast {
+        contrastOverride ?? environmentContrast
+    }
 
     var body: some View {
         ViewThatFits(in: .vertical) {
@@ -25,13 +46,23 @@ struct TaskPreviewView: View {
         .frame(maxHeight: Self.maxHeight, alignment: .top)
         .background {
             RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
-                .fill(QueueColors.surface)
+                .fill(previewColor(.surface))
         }
         .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
         .environment(\.queueTheme, queueTheme)
         .environment(\.colorScheme, colorScheme)
-        .environment(\.colorSchemeContrast, contrast)
         .environment(\.dynamicTypeSize, dynamicTypeSize)
+    }
+
+    /// Colors follow the contrast passed into this preview. The lifted menu
+    /// cannot write `colorSchemeContrast` back into the environment.
+    private func previewColor(_ role: QueueColorRole) -> Color {
+        QueueColors.concrete(
+            role,
+            theme: queueTheme,
+            scheme: colorScheme,
+            increasedContrast: contrast == .increased
+        )
     }
 
     private var previewColumn: some View {
@@ -53,7 +84,7 @@ struct TaskPreviewView: View {
             Button(action: onOpen) {
                 Text(content.positionLabel)
                     .font(.footnote)
-                    .foregroundStyle(QueueColors.textSecondary)
+                    .foregroundStyle(previewColor(.textSecondary))
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
@@ -67,46 +98,46 @@ struct TaskPreviewView: View {
         VStack(alignment: .leading, spacing: QueueSpacing.sm) {
             Text(content.title)
                 .font(.title2.weight(.semibold))
-                .foregroundStyle(QueueColors.textPrimary)
+                .foregroundStyle(previewColor(.textPrimary))
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
 
             Text(content.metaLine)
                 .font(.subheadline)
-                .foregroundStyle(QueueColors.textSecondary)
+                .foregroundStyle(previewColor(.textSecondary))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
             if content.showsEmptyDetails {
                 Text(TaskPreviewContent.emptyDetailsMessage)
                     .font(.body)
-                    .foregroundStyle(QueueColors.textSecondary)
+                    .foregroundStyle(previewColor(.textSecondary))
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 if !content.steps.isEmpty {
                     Text(TaskPreviewContent.whatToDoHeading)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(QueueColors.textPrimary)
+                        .foregroundStyle(previewColor(.textPrimary))
                     ForEach(Array(content.steps.enumerated()), id: \.offset) { _, step in
                         Text(step)
                             .font(.body)
-                            .foregroundStyle(QueueColors.textPrimary)
+                            .foregroundStyle(previewColor(.textPrimary))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     if content.showsOverflow {
                         Text(TaskPreviewContent.overflowMark)
                             .font(.body)
-                            .foregroundStyle(QueueColors.textSecondary)
+                            .foregroundStyle(previewColor(.textSecondary))
                             .accessibilityLabel("More steps")
                     }
                 }
                 if let why = content.whyItMatters {
                     Text(TaskPreviewContent.whyItMattersHeading)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(QueueColors.textPrimary)
+                        .foregroundStyle(previewColor(.textPrimary))
                     Text(why)
                         .font(.body)
-                        .foregroundStyle(QueueColors.textSecondary)
+                        .foregroundStyle(previewColor(.textSecondary))
                         .lineLimit(1)
                 }
             }
@@ -117,7 +148,7 @@ struct TaskPreviewView: View {
         Button(action: onAddDetails) {
             Text(TaskPreviewContent.addDetailsTitle)
                 .font(.body.weight(.semibold))
-                .foregroundStyle(QueueColors.primary)
+                .foregroundStyle(previewColor(.primary))
                 .frame(maxWidth: .infinity, minHeight: QueueSpacing.minTouch, alignment: .leading)
         }
         .buttonStyle(.plain)
@@ -321,11 +352,11 @@ struct StackTaskPreview: ViewModifier {
                     content: preview,
                     width: cardWidth,
                     onOpen: onOpen,
-                    onAddDetails: menu.onEdit
+                    onAddDetails: menu.onEdit,
+                    contrast: contrast
                 )
                 .environment(\.queueTheme, queueTheme)
                 .environment(\.colorScheme, colorScheme)
-                .environment(\.colorSchemeContrast, contrast)
                 .environment(\.dynamicTypeSize, dynamicTypeSize)
             })
     }

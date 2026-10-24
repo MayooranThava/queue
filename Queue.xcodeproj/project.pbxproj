@@ -78,6 +78,7 @@
 		A51CACC00000000000000004 /* QueueAccessibilityID.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51CACC00000000000000001 /* QueueAccessibilityID.swift */; };
 		A51CACC00000000000000012 /* QueueTestFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51CACC00000000000000011 /* QueueTestFixture.swift */; };
 		A51CACC00000000000000022 /* QueueOrderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51CACC00000000000000021 /* QueueOrderTests.swift */; };
+		A51CACC00000000000000072 /* StackCardVoiceOverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51CACC00000000000000071 /* StackCardVoiceOverTests.swift */; };
 		A51CACC00000000000000032 /* FocusAwardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51CACC00000000000000031 /* FocusAwardTests.swift */; };
 		A51CACC00000000000000042 /* FocusHandoffTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51CACC00000000000000041 /* FocusHandoffTests.swift */; };
 		A51CACC00000000000000052 /* CriticalJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51CACC00000000000000051 /* CriticalJourneyUITests.swift */; };
@@ -161,6 +162,7 @@
 		A51CACC00000000000000001 /* QueueAccessibilityID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QueueAccessibilityID.swift; path = Shared/QueueAccessibilityID.swift; sourceTree = SOURCE_ROOT; };
 		A51CACC00000000000000011 /* QueueTestFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QueueTestFixture.swift; path = QueueTests/Support/QueueTestFixture.swift; sourceTree = SOURCE_ROOT; };
 		A51CACC00000000000000021 /* QueueOrderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QueueOrderTests.swift; path = QueueTests/QueueOrderTests.swift; sourceTree = SOURCE_ROOT; };
+		A51CACC00000000000000071 /* StackCardVoiceOverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StackCardVoiceOverTests.swift; path = QueueTests/StackCardVoiceOverTests.swift; sourceTree = SOURCE_ROOT; };
 		A51CACC00000000000000031 /* FocusAwardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FocusAwardTests.swift; path = QueueTests/FocusAwardTests.swift; sourceTree = SOURCE_ROOT; };
 		A51CACC00000000000000041 /* FocusHandoffTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FocusHandoffTests.swift; path = QueueTests/FocusHandoffTests.swift; sourceTree = SOURCE_ROOT; };
 		A51CACC00000000000000051 /* CriticalJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CriticalJourneyUITests.swift; path = QueueUITests/CriticalJourneyUITests.swift; sourceTree = SOURCE_ROOT; };
@@ -202,7 +204,7 @@
 		};
 		3BE704E06049425AAA1EC775 /* QueueTests */ = {
 			isa = PBXGroup;
-			children = (1CA7F19AD40A4EB2847EC15C, 8C2A4E71F9D05B36A1C78D45, 01E4B053B05D427EA236B973, A6E2C33D44E54F708192A3B4, D0F6124E705C61D3E9B48F63, A51CACC00000000000000011, A51CACC00000000000000021, A51CACC00000000000000031, A51CACC00000000000000041);
+			children = (1CA7F19AD40A4EB2847EC15C, 8C2A4E71F9D05B36A1C78D45, 01E4B053B05D427EA236B973, A6E2C33D44E54F708192A3B4, D0F6124E705C61D3E9B48F63, A51CACC00000000000000011, A51CACC00000000000000021, A51CACC00000000000000031, A51CACC00000000000000041, A51CACC00000000000000071);
 			name = QueueTests;
 			sourceTree = "<group>";
 		};
@@ -234,7 +236,7 @@
 		6B7E85670EB147FE9D5EF5D4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (7517A1C917A94CD3A94F3857, 0F6B9C28D3E14A57B2F80C16, 447AC3DEF26E40148A43BD44, A6E2C33D44E54F708192A3B5, E1A7235F816D72E4FAB59074, A51CACC00000000000000012, A51CACC00000000000000022, A51CACC00000000000000032, A51CACC00000000000000042);
+			files = (7517A1C917A94CD3A94F3857, 0F6B9C28D3E14A57B2F80C16, 447AC3DEF26E40148A43BD44, A6E2C33D44E54F708192A3B5, E1A7235F816D72E4FAB59074, A51CACC00000000000000012, A51CACC00000000000000022, A51CACC00000000000000032, A51CACC00000000000000042, A51CACC00000000000000072);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		29B2B6AA64BC4261BD0AC944 /* Resources */ = {
