@@ -168,7 +168,7 @@ final class StackCardVoiceOverTests: XCTestCase {
     }
 
     private static let menuActionNames = ["Preview", "Start focus", "Edit", "Skip for today", "Delete"]
-    private static let windowFrame = CGRect(x: 0, y: 0, width: 390, height: 900)
+    fileprivate static let windowFrame = CGRect(x: 0, y: 0, width: 390, height: 900)
     private static var accessibilityRuntimeReady = false
 
     private static func label(of element: NSObject) -> String {
