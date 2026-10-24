@@ -16,6 +16,7 @@ struct QueueStackDeckView: View {
     var onExtend: (QueueTask) -> Void
     var onComplete: (QueueTask) -> Void
     var onExpire: () -> Void
+    var onOpenTask: (QueueTask) -> Void
     var menu: (Int, QueueTask) -> QueueBlockMenu
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -154,10 +155,11 @@ struct QueueStackDeckView: View {
                     }
                 }
             }
-            .modifier(QueueBlockInteractions(menu: cardMenu))
+            .modifier(previewMenu(0, task, cardMenu))
             .accessibilityElement(children: .contain)
             .accessibilityAction(named: Text("Skip")) { cardMenu.onSkip() }
             .accessibilityAction(named: Text("Delete")) { cardMenu.onDelete() }
+            .accessibilityAction(named: Text("Preview")) { onOpenTask(task) }
             .modifier(MoveToBottomAccessibilityAction(enabled: cardMenu.onMoveToBottom != nil) {
                 cardMenu.onMoveToBottom?()
             })
@@ -266,10 +268,12 @@ struct QueueStackDeckView: View {
         }
         .frame(height: CGFloat(placement.height))
         .modifier(StackCardSurface(dim: placement.dim, outlined: false, shadowed: false))
-        .modifier(QueueBlockInteractions(menu: cardMenu))
+        .modifier(previewMenu(index, task, cardMenu))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spoken(task, index: index))
+        .accessibilityHint("Long press for a preview")
         .modifier(PeekAccessibilityActions(menu: cardMenu))
+        .accessibilityAction(named: Text("Preview")) { onOpenTask(task) }
     }
 
     private func peekFace(_ task: QueueTask, index: Int) -> some View {
@@ -301,10 +305,12 @@ struct QueueStackDeckView: View {
             .padding(.vertical, QueueSpacing.md)
             .frame(maxWidth: .infinity, alignment: .leading)
             .modifier(StackCardSurface(dim: 0, outlined: false, shadowed: false))
-            .modifier(QueueBlockInteractions(menu: cardMenu))
+            .modifier(previewMenu(index, task, cardMenu))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(spoken(task, index: index))
+            .accessibilityHint("Long press for a preview")
             .modifier(PeekAccessibilityActions(menu: cardMenu))
+            .accessibilityAction(named: Text("Preview")) { onOpenTask(task) }
     }
 
     private func footerCard(hiddenCount: Int, nextIndex: Int, height: Double) -> some View {
@@ -408,6 +414,18 @@ struct QueueStackDeckView: View {
             return index == 0 ? nowSortPriority : Double(tasks.count - index)
         }
         return 0
+    }
+
+    /// Start focus runs this task. Skip is the only menu action that changes
+    /// order. Delete asks first. Opening the preview does not award XP.
+    private func previewMenu(_ index: Int, _ task: QueueTask, _ cardMenu: QueueBlockMenu) -> StackTaskPreview {
+        StackTaskPreview(
+            task: task,
+            position: index + 1,
+            menu: cardMenu,
+            onStartFocus: { onStartFocus(task) },
+            onOpen: { onOpenTask(task) }
+        )
     }
 
     private func rowID(for card: StackDeckLayout.Card) -> String {
