@@ -22,6 +22,8 @@ struct QueueHomeView: View {
     @State private var showAddTask = false
     @State private var editingTask: QueueTask?
     @State private var focusTask: QueueTask?
+    @State private var taskPage: QueueTask?
+    @State private var taskPageFollowUp: TaskPageFollowUp?
     @State private var errorMessage: String?
     @State private var pendingQueueAction: PendingQueueAction?
     @State private var queueActionInFlight = false
@@ -108,6 +110,38 @@ struct QueueHomeView: View {
             AddEditTaskView(existing: task) { draft in
                 await updateTask(task, draft: draft)
             }
+            .environment(\.queueTheme, queueTheme)
+        }
+        .sheet(item: $taskPage, onDismiss: { runTaskPageFollowUp() }) { task in
+            TaskPageSheet(
+                task: task,
+                tasks: activeTasks,
+                onStartFocus: { selected in
+                    taskPageFollowUp = .start(selected)
+                    taskPage = nil
+                },
+                onEdit: { selected in
+                    taskPageFollowUp = .edit(selected)
+                    taskPage = nil
+                },
+                onSkip: { selected in
+                    taskPageFollowUp = .skip(selected)
+                    taskPage = nil
+                },
+                onDelete: { selected in
+                    taskPageFollowUp = .delete(selected)
+                    taskPage = nil
+                },
+                onMoveUp: { selected in
+                    moveTask(id: selected.id, direction: -1)
+                },
+                onMoveDown: { selected in
+                    moveTask(id: selected.id, direction: 1)
+                },
+                onMoveToBottom: { selected in
+                    requestMoveToBottom(selected)
+                }
+            )
             .environment(\.queueTheme, queueTheme)
         }
         .fullScreenCover(item: $focusTask, onDismiss: {
@@ -319,6 +353,7 @@ struct QueueHomeView: View {
                     onExpire: {
                         Task { await evaluateStackExpiry() }
                     },
+                    onOpenTask: { taskPage = $0 },
                     menu: { index, task in stackMenu(index: index, task: task) }
                 )
                 .padding(.horizontal, QueueSpacing.md)
@@ -617,6 +652,22 @@ struct QueueHomeView: View {
         focusAlertsDenied = await services.focusAlertCenter.authorizationStatus() == .denied
     }
 
+    /// Runs after the task page has gone, so a confirmation dialog is not buried under the sheet.
+    private func runTaskPageFollowUp() {
+        guard let followUp = taskPageFollowUp else { return }
+        taskPageFollowUp = nil
+        switch followUp {
+        case .start(let task):
+            Task { await startFocusOnStack(task) }
+        case .edit(let task):
+            editingTask = task
+        case .skip(let task):
+            requestSkip(task)
+        case .delete(let task):
+            requestDelete(task)
+        }
+    }
+
     private func undoCompletion() async {
         do {
             _ = try await services.taskRepository?.undoLastCompletion()
@@ -911,6 +962,67 @@ private struct UpcomingTaskStackBlock: View {
             return "\(prefix) \(Self.timeFormatter.string(from: startTime)) · \(task.difficulty.displayName)"
         }
         return "\(max(1, Int(task.estimatedDuration / 60))) min · \(task.difficulty.displayName)"
+    }
+}
+
+private enum TaskPageFollowUp {
+    case start(QueueTask)
+    case edit(QueueTask)
+    case skip(QueueTask)
+    case delete(QueueTask)
+}
+
+/// Full task page opened from a preview tap or the VoiceOver Preview action.
+private struct TaskPageSheet: View {
+    let task: QueueTask
+    let tasks: [QueueTask]
+    var onStartFocus: (QueueTask) -> Void
+    var onEdit: (QueueTask) -> Void
+    var onSkip: (QueueTask) -> Void
+    var onDelete: (QueueTask) -> Void
+    var onMoveUp: (QueueTask) -> Void
+    var onMoveDown: (QueueTask) -> Void
+    var onMoveToBottom: (QueueTask) -> Void
+
+    private var live: QueueTask {
+        tasks.first { $0.id == task.id } ?? task
+    }
+
+    private var index: Int {
+        tasks.firstIndex { $0.id == task.id } ?? 0
+    }
+
+    var body: some View {
+        TaskPageView(
+            task: live,
+            position: index + 1,
+            onStartFocus: { onStartFocus(live) },
+            onEdit: { onEdit(live) },
+            onAddDetails: { onEdit(live) },
+            onSkip: { onSkip(live) },
+            onDelete: { onDelete(live) },
+            onMoveUp: moveUp,
+            onMoveDown: moveDown,
+            onMoveToBottom: moveToBottom
+        )
+    }
+
+    private var moveUp: (() -> Void)? {
+        guard index > 1 else { return nil }
+        let current = live
+        return { onMoveUp(current) }
+    }
+
+    private var moveDown: (() -> Void)? {
+        guard index > 0, index < tasks.count - 1 else { return nil }
+        let current = live
+        return { onMoveDown(current) }
+    }
+
+    private var moveToBottom: (() -> Void)? {
+        guard tasks.count > 1, index < tasks.count - 1 else { return nil }
+        let current = live
+        return { onMoveToBottom(current) }
     }
 }
 
