@@ -7,49 +7,69 @@ struct FocusCountdownRing: View {
     let isExpired: Bool
     let isPaused: Bool
     let reduceMotion: Bool
-    /// Focus uses a heavier stroke. The stack's live card passes a thinner one.
+    /// The focus screen uses 10pt. The stack's live card passes a thinner stroke.
     var lineWidth: CGFloat = 6
 
     @Environment(\.queueTheme) private var queueTheme
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var contrast
-    @State private var pulse = false
+    @State private var pulseScale: CGFloat = 1
+    @State private var didPulse = false
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(color(.textPrimary).opacity(0.18), lineWidth: lineWidth)
+                .stroke(
+                    trackColor,
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                )
 
             Circle()
-                .trim(from: 0, to: CGFloat(min(1, max(0, progress))))
+                .trim(from: 0, to: displayedFill)
                 .stroke(
-                    AngularGradient(
-                        colors: ringColors,
-                        center: .center
-                    ),
+                    strokeColor,
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
-                .animation(reduceMotion ? nil : QueueMotion.standard, value: progress)
-
-            if isExpired && !reduceMotion {
-                Circle()
-                    .stroke(progressColor.opacity(0.35), lineWidth: lineWidth)
-                    .scaleEffect(pulse ? 1.04 : 1.0)
-                    .opacity(pulse ? 0.35 : 0.7)
-                    .onAppear {
-                        withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
-                            pulse = true
-                        }
-                    }
+                .animation(reduceMotion ? nil : QueueMotion.standard, value: displayedFill)
+                .scaleEffect(pulseScale)
+        }
+        .padding(lineWidth / 2)
+        .accessibilityHidden(true)
+        .onAppear { startPulseIfNeeded() }
+        .onChange(of: isExpired) { _, expired in
+            if expired {
+                startPulseIfNeeded()
+            } else {
+                didPulse = false
+                pulseScale = 1
             }
         }
-        .accessibilityHidden(true)
     }
 
-    /// Honey reads on the dark column. Light surfaces use primary so the stroke stays visible.
-    private var progressColor: Color {
-        color(colorScheme == .dark ? .accent : .primary)
+    /// Time's up is a full ring. Otherwise the arc shrinks with the remaining fraction.
+    private var displayedFill: CGFloat {
+        CGFloat(FocusRingMetrics.ringFill(progress: progress, isTimeUp: isExpired))
+    }
+
+    private var trackColor: Color {
+        color(.textPrimary).opacity(FocusRingMetrics.trackOpacity)
+    }
+
+    /// Dark time's up is honey. Light time's up, and every running ring, stay on primary.
+    private var strokeColor: Color {
+        switch FocusRingMetrics.stroke(
+            isTimeUp: isExpired,
+            isPaused: isPaused,
+            isDark: colorScheme == .dark
+        ) {
+        case .primary:
+            return color(.primary)
+        case .accent:
+            return color(.accent)
+        case .paused:
+            return color(.textSecondary)
+        }
     }
 
     private func color(_ role: QueueColorRole) -> Color {
@@ -61,11 +81,17 @@ struct FocusCountdownRing: View {
         )
     }
 
-    private var ringColors: [Color] {
-        if isPaused {
-            let paused = color(.textSecondary)
-            return [paused, paused]
+    /// One slow breath of the full ring, then it rests. Reduce Motion stays still.
+    private func startPulseIfNeeded() {
+        guard isExpired, !reduceMotion, !didPulse else { return }
+        didPulse = true
+        let duration = FocusRingMetrics.timeUpPulseDuration
+        withAnimation(.easeInOut(duration: duration)) {
+            pulseScale = 1.04
+        } completion: {
+            withAnimation(.easeInOut(duration: duration)) {
+                pulseScale = 1
+            }
         }
-        return [progressColor.opacity(0.85), progressColor]
     }
 }

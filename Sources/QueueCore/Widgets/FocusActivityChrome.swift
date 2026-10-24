@@ -18,9 +18,9 @@ public enum FocusActivityChrome {
         return "\(difficultyDisplayName) · focusing"
     }
 
-    /// Honey is a dark-mode completed ring only. Light mode strokes stay terracotta.
+    /// Honey is a dark-mode completed ring only. Light mode strokes stay on primary.
     public static func ringUsesHoney(isComplete: Bool, isDark: Bool) -> Bool {
-        isDark && isComplete
+        FocusRingMetrics.stroke(isTimeUp: isComplete, isPaused: false, isDark: isDark) == .accent
     }
 
     public static func isTimeUp(

@@ -108,21 +108,20 @@ private struct LockScreenFocusView: View {
         switch family {
         case .accessoryCircular:
             ZStack {
-                Gauge(value: snapshot.progress(at: entry.date)) {
-                    Text("Focus")
-                }
-                .gaugeStyle(.accessoryCircularCapacity)
-                .widgetAccentable()
+                LockScreenFocusRing(snapshot: snapshot, at: entry.date)
                 if snapshot.session.state == .running,
                    let end = snapshot.runningEndDate(at: entry.date),
                    snapshot.remaining(at: entry.date) > 0 {
                     Text(timerInterval: entry.date...end, countsDown: true)
                         .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
                         .minimumScaleFactor(0.5)
+                        .lineLimit(1)
                         .widgetAccentable()
                 } else {
                     Text(FocusTimerFormatting.clock(snapshot.remaining(at: entry.date)))
                         .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
                         .widgetAccentable()
                 }
             }
@@ -276,12 +275,26 @@ struct WidgetPalette {
         fullColor ? QueueColors.dark(.textPrimary).opacity(0.18) : Color.primary.opacity(0.2)
     }
 
-    /// In-progress rings are terracotta. Honey is the completed ring in dark mode only.
+    /// Dim ring track. Separate from `track`, which the today bar also uses.
+    var ringTrack: Color {
+        let base = fullColor ? QueueColors.dark(.textPrimary) : Color.primary
+        return base.opacity(FocusRingMetrics.trackOpacity)
+    }
+
+    /// In-progress rings are primary. Honey is the completed ring in dark full color only.
     /// Light mode, and tinted or vibrant Lock Screen styles, stay on primary.
-    func ringColor(completed: Bool, colorScheme: ColorScheme) -> Color {
+    func ringColor(isTimeUp: Bool, isPaused: Bool, colorScheme: ColorScheme) -> Color {
         guard fullColor else { return .primary }
-        let honey = FocusActivityChrome.ringUsesHoney(isComplete: completed, isDark: colorScheme == .dark)
-        let role: QueueColorRole = honey ? .accent : .primary
+        let stroke = FocusRingMetrics.stroke(isTimeUp: isTimeUp, isPaused: isPaused, isDark: colorScheme == .dark)
+        let role: QueueColorRole
+        switch stroke {
+        case .accent:
+            role = .accent
+        case .paused:
+            role = .textSecondary
+        case .primary:
+            role = .primary
+        }
         if colorScheme == .dark {
             return QueueColors.dark(role)
         }
@@ -290,6 +303,57 @@ struct WidgetPalette {
             theme: QueueThemeStore.current(),
             scheme: .light,
             increasedContrast: false
+        )
+    }
+}
+
+/// Lock Screen circular focus ring. Same caps, track, and time's-up fill as the session screen.
+private struct LockScreenFocusRing: View {
+    let snapshot: FocusWidgetSnapshot
+    let at: Date
+
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var palette: WidgetPalette { WidgetPalette(mode: renderingMode) }
+
+    private var timeUp: Bool {
+        FocusActivityChrome.isTimeUp(
+            state: snapshot.session.state,
+            remaining: snapshot.remaining(at: at),
+            isStale: false
+        )
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let diameter = min(geo.size.width, geo.size.height)
+            let lineWidth = max(CGFloat(4), diameter * 0.08)
+            let stroke = palette.ringColor(
+                isTimeUp: timeUp,
+                isPaused: snapshot.session.state == .paused,
+                colorScheme: colorScheme
+            )
+            ZStack {
+                Circle()
+                    .stroke(palette.ringTrack, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                Circle()
+                    .trim(from: 0, to: CGFloat(fill))
+                    .stroke(stroke, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .widgetAccentable()
+            }
+            .padding(lineWidth / 2)
+            .frame(width: diameter, height: diameter)
+            .position(x: geo.size.width / 2, y: geo.size.height / 2)
+        }
+    }
+
+    private var fill: Double {
+        FocusRingMetrics.ringFill(
+            remaining: snapshot.remaining(at: at),
+            planned: snapshot.session.totalPlanned,
+            isTimeUp: timeUp
         )
     }
 }
@@ -353,25 +417,31 @@ struct WidgetCompanionBadge: View {
 
     private var palette: WidgetPalette { WidgetPalette(mode: renderingMode) }
     private var pose: WidgetCompanionPose { WidgetCompanionPose.pose(for: state) }
+    private var lineWidth: CGFloat { max(CGFloat(2.5), diameter * 0.08) }
     private var ringColor: Color {
-        palette.ringColor(completed: state == .expired, colorScheme: colorScheme)
+        palette.ringColor(
+            isTimeUp: state == .expired,
+            isPaused: state == .paused,
+            colorScheme: colorScheme
+        )
+    }
+    private var fill: Double {
+        FocusRingMetrics.ringFill(progress: progress, isTimeUp: state == .expired)
     }
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(palette.track, lineWidth: max(CGFloat(2), diameter * 0.06))
+                .stroke(palette.ringTrack, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
             Circle()
-                .trim(from: 0, to: CGFloat(min(1, max(0, progress))))
-                .stroke(
-                    ringColor,
-                    style: StrokeStyle(lineWidth: max(CGFloat(2), diameter * 0.06), lineCap: .round)
-                )
+                .trim(from: 0, to: CGFloat(fill))
+                .stroke(ringColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .widgetAccentable()
             companionImage
                 .padding(diameter * 0.08)
         }
+        .padding(lineWidth / 2)
         .frame(width: diameter, height: diameter)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
